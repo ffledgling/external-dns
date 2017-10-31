@@ -40,7 +40,12 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Authorization
 
- All endpoints do not require authorization.
+
+## APIKeyHeader
+
+- **Type**: API key 
+- **API key parameter name**: X-API-Key
+- **Location**: HTTP header
 
 
 ## Author

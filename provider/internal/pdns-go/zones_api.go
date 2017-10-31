@@ -70,6 +70,9 @@ func (a ZonesApi) ListZone(serverId string, zoneId string) (*Zone, *APIResponse,
 	var localVarPostBody interface{}
 	var localVarFileName string
 	var localVarFileBytes []byte
+	// authentication '(APIKeyHeader)' required
+	// set key with prefix in header
+	localVarHeaderParams["X-API-Key"] = a.Configuration.GetAPIKeyWithPrefix("X-API-Key")
 	// add default headers if any
 	for key := range a.Configuration.DefaultHeader {
 		localVarHeaderParams[key] = a.Configuration.DefaultHeader[key]
@@ -130,6 +133,11 @@ func (a ZonesApi) ListZones(serverId string) ([]Zone, *APIResponse, error) {
 	var localVarPostBody interface{}
 	var localVarFileName string
 	var localVarFileBytes []byte
+	// authentication '(APIKeyHeader)' required
+	// set key with prefix in header
+	localVarHeaderParams["X-API-Key"] = a.Configuration.GetAPIKeyWithPrefix("X-API-Key")
+	fmt.Printf("DEBUG a: %+v", a)
+	fmt.Printf("DEBUG: Header Params: %+v\n", localVarHeaderParams)
 	// add default headers if any
 	for key := range a.Configuration.DefaultHeader {
 		localVarHeaderParams[key] = a.Configuration.DefaultHeader[key]
@@ -154,7 +162,9 @@ func (a ZonesApi) ListZones(serverId string) ([]Zone, *APIResponse, error) {
 		localVarHeaderParams["Accept"] = localVarHttpHeaderAccept
 	}
 	var successPayload = new([]Zone)
+	fmt.Printf("DEBUG: Header Params: %+v\n", localVarHeaderParams)
 	localVarHttpResponse, err := a.Configuration.APIClient.CallAPI(localVarPath, localVarHttpMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, localVarFileName, localVarFileBytes)
+	fmt.Println("DEBUG (HTTP response body):", localVarHttpResponse.Body())
 
 	var localVarURL, _ = url.Parse(localVarPath)
 	localVarURL.RawQuery = localVarQueryParams.Encode()

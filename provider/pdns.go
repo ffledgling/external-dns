@@ -12,8 +12,9 @@ import (
 
 const (
 	//recordTTL = 300
-	HOST           = "http://devops-lab1.lab2-skae.tower-research.com:8088"
-	DEFAULT_SERVER = "locahost"
+	HOST           = "http://devops-lab1.lab2-skae.tower-research.com:8088/api/v1"
+	DEFAULT_SERVER = "localhost"
+	PDNS_TOKEN     = "pdns"
 )
 
 type PDNSProvider struct {
@@ -40,17 +41,51 @@ func NewPDNSProvider() (*PDNSProvider, error) {
 	return provider, nil
 }
 
+func convertRRSetToEndpoints(rr pgo.RrSet) (endpoints []*endpoint.Endpoint, _ error) {
+	endpoints = []*endpoint.Endpoint{}
+
+	for _, record := range rr.Records {
+		//func NewEndpointWithTTL(dnsName, target, recordType string, ttl TTL) *Endpoint
+		endpoints = append(endpoints, endpoint.NewEndpointWithTTL(rr.Name, record.Content, rr.Type_, endpoint.TTL(rr.Ttl)))
+	}
+
+	return endpoints, nil
+}
+
 // Records returns the list of records in a given hosted zone.
 func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 	a := pgo.NewZonesApiWithBasePath(HOST)
+	a.Configuration.APIKey["X-API-Key"] = PDNS_TOKEN
+	//log.Debugf("%+v", a)
+	//log.Debugf("X-API-Key: %+v", a.Configuration.GetAPIKeyWithPrefix("X-API-Key"))
+	//zones, resp, err := a.ListZones(DEFAULT_SERVER)
 	zones, _, err := a.ListZones(DEFAULT_SERVER)
+	log.Debugf("Zones: %+v", zones)
+	//#log.Debugf("Response: %+v", resp)
+	//#log.Debugf("Response: %+v", string(resp.Payload))
 	if err != nil {
 		log.Warnf("Unable to fetch zones from %s. %v", HOST, err)
 		return nil, err
 	}
 
 	for _, zone := range zones {
-		log.Debugf("zone: %v", zone)
+		log.Debugf("zone: %+v", zone)
+		z, _, err := a.ListZone(DEFAULT_SERVER, zone.Id)
+		if err != nil {
+			log.Warnf("Unable to fetch data for %v from %s. %v", zone.Id, HOST, err)
+			return nil, err
+		}
+
+		log.Debugf("zone data: %+v", z)
+		for _, rr := range z.Rrsets {
+			log.Debugf("rrset: %+v", rr)
+			e, err := convertRRSetToEndpoints(rr)
+			if err != nil {
+				return nil, err
+			}
+			endpoints = append(endpoints, e...)
+			log.Debugf("Endpoints: %+v", endpoints)
+		}
 	}
 
 	return endpoints, nil
