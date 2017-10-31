@@ -1,8 +1,6 @@
-hash: 12a6904c791453abda4f4bc4e22ccbcf4026d3a68b385cc3937f6d42d7f48ddf
-updated: 2017-10-10T15:15:51.794530929-07:00
+hash: 18a7ab2d16062cf80e776baa719d3552b91daf4a536d72cf198826f852d001ed
+updated: 2017-10-31T17:14:46.358200004+05:30
 imports:
-- name: bitbucket.org/ww/goautoneg
-  version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
   subpackages:
@@ -49,7 +47,7 @@ imports:
   subpackages:
   - arm/dns
 - name: github.com/Azure/go-autorest
-  version: 58f6f26e200fa5dfb40c9cd1c83f3e2c860d779d
+  version: ""
   subpackages:
   - autorest
   - autorest/adal
@@ -103,7 +101,7 @@ imports:
 - name: github.com/ghodss/yaml
   version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - name: github.com/go-ini/ini
-  version: e7fea39b01aea8d5671f6858f0532f56e8bff3a5
+  version: f280b3ba517bf5fc98922624f21fb0e7a92adaec
 - name: github.com/go-openapi/jsonpointer
   version: 46af16f9f7b149af66e5d1bd010e3574dc06de98
 - name: github.com/go-openapi/jsonreference
@@ -112,6 +110,8 @@ imports:
   version: 6aced65f8501fe1217321abf0749d354824ba2ff
 - name: github.com/go-openapi/swag
   version: 1d0bd113de87027671077d3c71eb3ac5d7dbba72
+- name: github.com/go-resty/resty
+  version: 9ac9c42358f7c3c69ac9f8610e8790d7c338e85d
 - name: github.com/gogo/protobuf
   version: e18d7aa8f8c624c915db340349aad4c49b10d173
   subpackages:
@@ -134,7 +134,7 @@ imports:
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/infobloxopen/infoblox-go-client
-  version: 80793a9e51c966af2c505167773c3f7cb220a4b2
+  version: e2811d86bed7bb487eeb0806337b6f9e9d93d5e7
 - name: github.com/jmespath/go-jmespath
   version: bd40a432e4c76585ef6b72d3fd96fb9b6dc7b68d
 - name: github.com/jonboulle/clockwork
@@ -142,7 +142,7 @@ imports:
 - name: github.com/juju/ratelimit
   version: 77ed1c8a01217656d2080ad51981f6e99adaa177
 - name: github.com/kubernetes/repo-infra
-  version: 4667983ff6a1c7dff07191106392ad4bcad60c29
+  version: ae4e9a3906ace4ba657b7a09242610c6266e832c
 - name: github.com/linki/instrumented_http
   version: 508103cfb3b315fa9752b5bcd4fb2d97bbc26d89
 - name: github.com/mailru/easyjson
@@ -152,11 +152,11 @@ imports:
   - jlexer
   - jwriter
 - name: github.com/matttproud/golang_protobuf_extensions
-  version: fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a
+  version: c12348ce28de40eed0136aa2b644d0ee0650e56c
   subpackages:
   - pbutil
 - name: github.com/pkg/errors
-  version: 645ef00459ed84a119197bfb8d8205042c6df63d
+  version: f15c970de5b76fac0b59abb32d62c17cc7bed265
 - name: github.com/pmezard/go-difflib
   version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
   subpackages:
@@ -171,12 +171,15 @@ imports:
   subpackages:
   - go
 - name: github.com/prometheus/common
-  version: ffe929a3f4c4faeaa10f2b9535c2b1be3ad15650
+  version: 1bab55dd05dbff384524a6a1c99006d9eb5f139b
   subpackages:
   - expfmt
+  - internal/bitbucket.org/ww/goautoneg
   - model
 - name: github.com/prometheus/procfs
-  version: 454a56f35412459b5e684fd5ec0f9211b94f002a
+  version: a6e9df898b1336106c743392c48ee0b71f5c4efa
+  subpackages:
+  - xfs
 - name: github.com/PuerkitoBio/purell
   version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
 - name: github.com/PuerkitoBio/urlesc
@@ -201,7 +204,7 @@ imports:
   subpackages:
   - codec
 - name: golang.org/x/crypto
-  version: d172538b2cfce0c13cee31e647d0367aa8cd2486
+  version: 2509b142fb2b797aa7587dad548f113b2c0f20ce
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
@@ -213,6 +216,7 @@ imports:
   - http2/hpack
   - idna
   - lex/httplex
+  - publicsuffix
 - name: golang.org/x/oauth2
   version: 3c3a985cb79f52a3190fbc056984415ca6763d01
   subpackages:
@@ -221,9 +225,10 @@ imports:
   - jws
   - jwt
 - name: golang.org/x/sys
-  version: 7de4796419dc3b554e6dab3a119a62469569d299
+  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
   subpackages:
   - unix
+  - windows
 - name: golang.org/x/text
   version: 2910a502d2bf9e43193af9d68ca516529614eed3
   subpackages:
@@ -238,7 +243,7 @@ imports:
   - unicode/norm
   - width
 - name: google.golang.org/api
-  version: 64485db7e8c8be51e572801d06cdbcfadd3546c1
+  version: 672d215daf0631fcae4c08c2a4324a763aaaf789
   subpackages:
   - dns/v1
   - gensupport
