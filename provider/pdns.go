@@ -2,7 +2,10 @@ package provider
 
 import (
 	//"strings"
+	"bytes"
+	"context"
 	"errors"
+	"net/http"
 
 	log "github.com/sirupsen/logrus"
 
@@ -13,7 +16,8 @@ import (
 
 const (
 	DEFAULT_TTL    = 300
-	HOST           = "http://devops-lab1.lab2-skae.tower-research.com:8088/api/v1" // this should be a cli param as well
+	HOST           = "http://devops-lab1.lab2-skae.tower-research.com:8088" // this should be a cli param as well
+	API_BASE       = HOST + "/api/v1"
 	DEFAULT_SERVER = "localhost"
 	PDNS_TOKEN     = "pdns" // TODO: This should be a cli param
 	MAX_UINT32     = ^uint32(0)
@@ -37,6 +41,15 @@ func (p *PDNSProvider) Zones() (map[string]*route53.HostedZone, error) {
 	return zones, nil
 }
 */
+
+func printHTTPResponseBody(r *http.Response) (body string) {
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r.Body)
+	body = buf.String()
+	return body
+
+}
 
 func NewPDNSProvider() (*PDNSProvider, error) {
 
@@ -88,23 +101,32 @@ func EndpointToRRSet(e *endpoint.Endpoint) (rr pgo.RrSet, _ error) {
 
 // Records returns the list of records in a given hosted zone.
 func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
-	a := pgo.NewZonesApiWithBasePath(HOST)
-	a.Configuration.APIKey["X-API-Key"] = PDNS_TOKEN
-	//log.Debugf("%+v", a)
-	//log.Debugf("X-API-Key: %+v", a.Configuration.GetAPIKeyWithPrefix("X-API-Key"))
+
+	cfg := pgo.NewConfiguration()
+	cfg.Host = HOST
+	cfg.BasePath = API_BASE
+	a := pgo.NewAPIClient(cfg)
+	auth_ctx := context.WithValue(context.TODO(), pgo.ContextAPIKey, pgo.APIKey{Key: PDNS_TOKEN})
+
+	/*
+		a := pgo.NewZonesApiWithBasePath(HOST)
+		a.Configuration.APIKey["X-API-Key"] = PDNS_TOKEN
+		//log.Debugf("%+v", a)
+		//log.Debugf("X-API-Key: %+v", a.Configuration.GetAPIKeyWithPrefix("X-API-Key"))
+	*/
 	//zones, resp, err := a.ListZones(DEFAULT_SERVER)
-	zones, _, err := a.ListZones(DEFAULT_SERVER)
+	zones, resp, err := a.ZonesApi.ListZones(auth_ctx, DEFAULT_SERVER)
 	log.Debugf("Zones: %+v", zones)
-	//#log.Debugf("Response: %+v", resp)
-	//#log.Debugf("Response: %+v", string(resp.Payload))
+	log.Debugf("Response: %+v", resp)
+	log.Debugf("Response: %+v", printHTTPResponseBody(resp))
 	if err != nil {
-		log.Warnf("Unable to fetch zones from %s. %v", HOST, err)
+		log.Warnf("Unable to fetch zones from %v", err)
 		return nil, err
 	}
 
 	for _, zone := range zones {
 		log.Debugf("zone: %+v", zone)
-		z, _, err := a.ListZone(DEFAULT_SERVER, zone.Id)
+		z, _, err := a.ZonesApi.ListZone(auth_ctx, DEFAULT_SERVER, zone.Id)
 		if err != nil {
 			log.Warnf("Unable to fetch data for %v from %s. %v", zone.Id, HOST, err)
 			return nil, err
@@ -126,8 +148,16 @@ func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 }
 
 func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
-	a := pgo.NewZonesApiWithBasePath(HOST)
-	a.Configuration.APIKey["X-API-Key"] = PDNS_TOKEN
+	/*
+		a := pgo.NewZonesApiWithBasePath(HOST)
+		a.Configuration.APIKey["X-API-Key"] = PDNS_TOKEN
+	*/
+
+	cfg := pgo.NewConfiguration()
+	cfg.Host = HOST
+	cfg.BasePath = API_BASE
+	a := pgo.NewAPIClient(cfg)
+	auth_ctx := context.WithValue(context.TODO(), pgo.ContextAPIKey, pgo.APIKey{Key: PDNS_TOKEN})
 
 	for _, change := range changes.Create {
 		log.Debugf("CREATE: %+v", change)
@@ -146,9 +176,9 @@ func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 		zone.Rrsets = rrsets
 
 		//z, _, err := a.ListZone(DEFAULT_SERVER, zone.Id, zone)
-		resp, err := a.PatchZone(DEFAULT_SERVER, zone.Id, zone)
+		resp, err := a.ZonesApi.PatchZone(auth_ctx, DEFAULT_SERVER, zone.Id, zone)
 		log.Debugf("[PatchZone] resp: %+v", resp)
-		log.Debugf("[PatchZone] resp.Payload: %+v", string(resp.Payload))
+		log.Debugf("[PatchZone] resp.Body: %+v", printHTTPResponseBody(resp))
 		if err != nil {
 			return err
 		}
