@@ -9,16 +9,15 @@ Method | HTTP request | Description
 
 
 # **ListServer**
-> Server ListServer($serverId)
-
+> Server ListServer(ctx, serverId)
 List a server
 
-
-### Parameters
+### Required Parameters
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **serverId** | **string**| The id of the server to retrieve | 
+ **ctx** | **context.Context** | context containing the authentication | nil if no authentication
+  **serverId** | **string**| The id of the server to retrieve | 
 
 ### Return type
 
@@ -36,12 +35,10 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **ListServers**
-> []Server ListServers()
-
+> []Server ListServers(ctx, )
 List all servers
 
-
-### Parameters
+### Required Parameters
 This endpoint does not need any parameter.
 
 ### Return type
