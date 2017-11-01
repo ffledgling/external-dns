@@ -2,6 +2,7 @@ package provider
 
 import (
 	//"strings"
+	"errors"
 
 	log "github.com/sirupsen/logrus"
 
@@ -11,10 +12,13 @@ import (
 )
 
 const (
-	//recordTTL = 300
-	HOST           = "http://devops-lab1.lab2-skae.tower-research.com:8088/api/v1"
+	DEFAULT_TTL    = 300
+	HOST           = "http://devops-lab1.lab2-skae.tower-research.com:8088/api/v1" // this should be a cli param as well
 	DEFAULT_SERVER = "localhost"
-	PDNS_TOKEN     = "pdns"
+	PDNS_TOKEN     = "pdns" // TODO: This should be a cli param
+	MAX_UINT32     = ^uint32(0)
+	MAX_INT32      = MAX_UINT32 >> 1
+	DEFAULT_ZONE   = "kube-test.skae.tower-research.com."
 )
 
 type PDNSProvider struct {
@@ -50,6 +54,36 @@ func convertRRSetToEndpoints(rr pgo.RrSet) (endpoints []*endpoint.Endpoint, _ er
 	}
 
 	return endpoints, nil
+}
+
+func EndpointsToRRSets(endpoints []*endpoint.Endpoint) (rrsets []pgo.RrSet, _ error) {
+	// TODO: ffledgling
+
+	return rrsets, nil
+}
+
+func EndpointToRRSet(e *endpoint.Endpoint) (rr pgo.RrSet, _ error) {
+	// Theoretically an RRSet encapsulates more than one record of the same type.
+	// For example multiple A records are clubbed under the same RRSet
+	// Using an RRSet that encapsulates only one endpoint (record in PDNS terms)
+	// and then using it to patch via PDNS API might result in lost records
+
+	rr.Name = ensureTrailingDot(e.DNSName)
+	// Check we don't cause an overflow by typecasting int64 to int32
+	if int64(e.RecordTTL) > int64(MAX_INT32) {
+		return rr, errors.New("Value of record TTL overflows, limited to int32")
+	}
+	var TTL int32
+	if e.RecordTTL == 0 {
+		TTL = DEFAULT_TTL
+	} else {
+		TTL = int32(e.RecordTTL)
+	}
+	rr.Ttl = TTL
+	rr.Type_ = e.RecordType
+	rr.Records = append(rr.Records, pgo.Record{Content: e.Target, Disabled: false, SetPtr: false})
+
+	return rr, nil
 }
 
 // Records returns the list of records in a given hosted zone.
@@ -92,8 +126,32 @@ func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 }
 
 func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
+	a := pgo.NewZonesApiWithBasePath(HOST)
+	a.Configuration.APIKey["X-API-Key"] = PDNS_TOKEN
+
 	for _, change := range changes.Create {
 		log.Debugf("CREATE: %+v", change)
+		rrset, err := EndpointToRRSet(change)
+		if err != nil {
+			return err
+		}
+		// Necessary for creating or modifying records
+		rrset.Changetype = "REPLACE"
+		log.Debugf("[EndpointToRRSet] RRSet: %+v", rrset)
+		zone := pgo.Zone{}
+		zone.Name = "kube-test.skae.tower-research.com."
+		zone.Id = "kube-test.skae.tower-research.com."
+		zone.Kind = "Native"
+		rrsets := []pgo.RrSet{rrset}
+		zone.Rrsets = rrsets
+
+		//z, _, err := a.ListZone(DEFAULT_SERVER, zone.Id, zone)
+		resp, err := a.PatchZone(DEFAULT_SERVER, zone.Id, zone)
+		log.Debugf("[PatchZone] resp: %+v", resp)
+		log.Debugf("[PatchZone] resp.Payload: %+v", string(resp.Payload))
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, change := range changes.UpdateOld {
