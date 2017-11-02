@@ -32,6 +32,12 @@ type PDNSProvider struct {
 	domainFilter DomainFilter
 	// filter hosted zones by type (e.g. private or public)
 	zoneTypeFilter ZoneTypeFilter
+
+	// Swagger API Client
+	client *pgo.APIClient
+
+	// Auth context to be passed to client requests, contains API keys etc.
+	auth_ctx context.Context
 }
 
 // Zones returns the list of hosted zones.
@@ -54,6 +60,15 @@ func printHTTPResponseBody(r *http.Response) (body string) {
 func NewPDNSProvider() (*PDNSProvider, error) {
 
 	provider := &PDNSProvider{}
+
+	cfg := pgo.NewConfiguration()
+	cfg.Host = HOST
+	cfg.BasePath = API_BASE
+
+	// Initialize a single client that we can use for all requests
+	provider.client = pgo.NewAPIClient(cfg)
+	// Configure PDNS API Key, which is sent via X-API-Key header to pdns server
+	provider.auth_ctx = context.WithValue(context.TODO(), pgo.ContextAPIKey, pgo.APIKey{Key: PDNS_TOKEN})
 
 	return provider, nil
 }
@@ -98,27 +113,68 @@ func EndpointToRRSet(e *endpoint.Endpoint) (rr pgo.RrSet, _ error) {
 
 	return rr, nil
 }
+func (p *PDNSProvider) DeleteRecord(endpoint *endpoint.Endpoint) error {
+	rrset, err := EndpointToRRSet(endpoint)
+	if err != nil {
+		return err
+	}
+	// Necessary for deleting records
+	rrset.Changetype = "DELETE"
+	log.Debugf("[EndpointToRRSet] RRSet: %+v", rrset)
+	zone := pgo.Zone{}
+	zone.Name = "kube-test.skae.tower-research.com."
+	zone.Id = "kube-test.skae.tower-research.com."
+	zone.Kind = "Native"
+	rrsets := []pgo.RrSet{rrset}
+	zone.Rrsets = rrsets
+
+	//z, _, err := a.ListZone(DEFAULT_SERVER, zone.Id, zone)
+	resp, err := p.client.ZonesApi.PatchZone(p.auth_ctx, DEFAULT_SERVER, zone.Id, zone)
+	log.Debugf("[PatchZone] resp: %+v", resp)
+	log.Debugf("[PatchZone] resp.Body: %+v", printHTTPResponseBody(resp))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *PDNSProvider) ReplaceRecord(endpoint *endpoint.Endpoint) error {
+	rrset, err := EndpointToRRSet(endpoint)
+	if err != nil {
+		return err
+	}
+	// Necessary for creating or modifying records
+	rrset.Changetype = "REPLACE"
+	log.Debugf("[EndpointToRRSet] RRSet: %+v", rrset)
+	zone := pgo.Zone{}
+	zone.Name = "kube-test.skae.tower-research.com."
+	zone.Id = "kube-test.skae.tower-research.com."
+	zone.Kind = "Native"
+	rrsets := []pgo.RrSet{rrset}
+	zone.Rrsets = rrsets
+
+	//z, _, err := a.ListZone(DEFAULT_SERVER, zone.Id, zone)
+	resp, err := p.client.ZonesApi.PatchZone(p.auth_ctx, DEFAULT_SERVER, zone.Id, zone)
+	log.Debugf("[PatchZone] resp: %+v", resp)
+	log.Debugf("[PatchZone] resp.Body: %+v", printHTTPResponseBody(resp))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // Records returns the list of records in a given hosted zone.
 func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 
-	cfg := pgo.NewConfiguration()
-	cfg.Host = HOST
-	cfg.BasePath = API_BASE
-	a := pgo.NewAPIClient(cfg)
-	auth_ctx := context.WithValue(context.TODO(), pgo.ContextAPIKey, pgo.APIKey{Key: PDNS_TOKEN})
-
+	zones, _, err := p.client.ZonesApi.ListZones(p.auth_ctx, DEFAULT_SERVER)
 	/*
-		a := pgo.NewZonesApiWithBasePath(HOST)
-		a.Configuration.APIKey["X-API-Key"] = PDNS_TOKEN
-		//log.Debugf("%+v", a)
-		//log.Debugf("X-API-Key: %+v", a.Configuration.GetAPIKeyWithPrefix("X-API-Key"))
+		zones, resp, err := p.client.ZonesApi.ListZones(p.auth_ctx, DEFAULT_SERVER)
+		log.Debugf("Zones: %+v", zones)
+		log.Debugf("Response: %+v", resp)
+		log.Debugf("Response: %+v", printHTTPResponseBody(resp))
 	*/
-	//zones, resp, err := a.ListZones(DEFAULT_SERVER)
-	zones, resp, err := a.ZonesApi.ListZones(auth_ctx, DEFAULT_SERVER)
-	log.Debugf("Zones: %+v", zones)
-	log.Debugf("Response: %+v", resp)
-	log.Debugf("Response: %+v", printHTTPResponseBody(resp))
 	if err != nil {
 		log.Warnf("Unable to fetch zones from %v", err)
 		return nil, err
@@ -126,7 +182,7 @@ func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 
 	for _, zone := range zones {
 		log.Debugf("zone: %+v", zone)
-		z, _, err := a.ZonesApi.ListZone(auth_ctx, DEFAULT_SERVER, zone.Id)
+		z, _, err := p.client.ZonesApi.ListZone(p.auth_ctx, DEFAULT_SERVER, zone.Id)
 		if err != nil {
 			log.Warnf("Unable to fetch data for %v from %s. %v", zone.Id, HOST, err)
 			return nil, err
@@ -148,16 +204,6 @@ func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 }
 
 func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
-	/*
-		a := pgo.NewZonesApiWithBasePath(HOST)
-		a.Configuration.APIKey["X-API-Key"] = PDNS_TOKEN
-	*/
-
-	cfg := pgo.NewConfiguration()
-	cfg.Host = HOST
-	cfg.BasePath = API_BASE
-	a := pgo.NewAPIClient(cfg)
-	auth_ctx := context.WithValue(context.TODO(), pgo.ContextAPIKey, pgo.APIKey{Key: PDNS_TOKEN})
 
 	for _, change := range changes.Create {
 		log.Debugf("CREATE: %+v", change)
@@ -176,7 +222,7 @@ func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 		zone.Rrsets = rrsets
 
 		//z, _, err := a.ListZone(DEFAULT_SERVER, zone.Id, zone)
-		resp, err := a.ZonesApi.PatchZone(auth_ctx, DEFAULT_SERVER, zone.Id, zone)
+		resp, err := p.client.ZonesApi.PatchZone(p.auth_ctx, DEFAULT_SERVER, zone.Id, zone)
 		log.Debugf("[PatchZone] resp: %+v", resp)
 		log.Debugf("[PatchZone] resp.Body: %+v", printHTTPResponseBody(resp))
 		if err != nil {
@@ -186,10 +232,33 @@ func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 
 	for _, change := range changes.UpdateOld {
 		log.Debugf("UPDATE-OLD: %+v", change)
+		// Since PDNS "Patches", we don't need to specify the "old" record.
+		// The Update New change type will automatically take care of replacing the old RRSet with the new one
 	}
 
 	for _, change := range changes.UpdateNew {
 		log.Debugf("UPDATE-NEW: %+v", change)
+		rrset, err := EndpointToRRSet(change)
+		if err != nil {
+			return err
+		}
+		// Necessary for creating or modifying records
+		rrset.Changetype = "REPLACE"
+		log.Debugf("[EndpointToRRSet] RRSet: %+v", rrset)
+		zone := pgo.Zone{}
+		zone.Name = "kube-test.skae.tower-research.com."
+		zone.Id = "kube-test.skae.tower-research.com."
+		zone.Kind = "Native"
+		rrsets := []pgo.RrSet{rrset}
+		zone.Rrsets = rrsets
+
+		//z, _, err := a.ListZone(DEFAULT_SERVER, zone.Id, zone)
+		resp, err := p.client.ZonesApi.PatchZone(p.auth_ctx, DEFAULT_SERVER, zone.Id, zone)
+		log.Debugf("[PatchZone] resp: %+v", resp)
+		log.Debugf("[PatchZone] resp.Body: %+v", printHTTPResponseBody(resp))
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, change := range changes.Delete {
@@ -209,7 +278,7 @@ func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 		zone.Rrsets = rrsets
 
 		//z, _, err := a.ListZone(DEFAULT_SERVER, zone.Id, zone)
-		resp, err := a.ZonesApi.PatchZone(auth_ctx, DEFAULT_SERVER, zone.Id, zone)
+		resp, err := p.client.ZonesApi.PatchZone(p.auth_ctx, DEFAULT_SERVER, zone.Id, zone)
 		log.Debugf("[PatchZone] resp: %+v", resp)
 		log.Debugf("[PatchZone] resp.Body: %+v", printHTTPResponseBody(resp))
 		if err != nil {
