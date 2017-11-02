@@ -51,6 +51,8 @@ type Config struct {
 	InfobloxWapiVersion  string
 	InfobloxSSLVerify    bool
 	InMemoryZones        []string
+	PDNSServer           string
+	PDNSAPIKey           string
 	Policy               string
 	Registry             string
 	TXTOwnerID           string
@@ -85,6 +87,8 @@ var defaultConfig = &Config{
 	InfobloxWapiVersion:  "2.3.1",
 	InfobloxSSLVerify:    true,
 	InMemoryZones:        []string{},
+	PDNSServer:           "http://localhost:8081",
+	PDNSAPIKey:           "",
 	Policy:               "sync",
 	Registry:             "txt",
 	TXTOwnerID:           "default",
@@ -143,6 +147,8 @@ func (cfg *Config) ParseFlags(args []string) error {
 	app.Flag("infoblox-wapi-version", "When using the Infoblox provider, specify the WAPI version (default: 2.3.1)").Default(defaultConfig.InfobloxWapiVersion).StringVar(&cfg.InfobloxWapiVersion)
 	app.Flag("infoblox-ssl-verify", "When using the Infoblox provider, specify whether to verify the SSL certificate (default: true)").Default(strconv.FormatBool(defaultConfig.InfobloxSSLVerify)).BoolVar(&cfg.InfobloxSSLVerify)
 	app.Flag("inmemory-zone", "Provide a list of pre-configured zones for the inmemory provider; specify multiple times for multiple zones (optional)").Default("").StringsVar(&cfg.InMemoryZones)
+	app.Flag("pdns-server", "When using the PowerDNS/PDNS provider, specify the URL to the pdns server (required when --provider=pdns)").Default(defaultConfig.PDNSServer).StringVar(&cfg.PDNSServer)
+	app.Flag("pdns-api-key", "When using the PowerDNS/PDNS provider, specify the URL to the pdns server (required when --provider=pdns)").Default(defaultConfig.PDNSAPIKey).StringVar(&cfg.PDNSAPIKey)
 
 	// Flags related to policies
 	app.Flag("policy", "Modify how DNS records are sychronized between sources and providers (default: sync, options: sync, upsert-only)").Default(defaultConfig.Policy).EnumVar(&cfg.Policy, "sync", "upsert-only")
