@@ -194,6 +194,27 @@ func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 
 	for _, change := range changes.Delete {
 		log.Debugf("DELETE: %+v", change)
+		rrset, err := EndpointToRRSet(change)
+		if err != nil {
+			return err
+		}
+		// Necessary for deleting records
+		rrset.Changetype = "DELETE"
+		log.Debugf("[EndpointToRRSet] RRSet: %+v", rrset)
+		zone := pgo.Zone{}
+		zone.Name = "kube-test.skae.tower-research.com."
+		zone.Id = "kube-test.skae.tower-research.com."
+		zone.Kind = "Native"
+		rrsets := []pgo.RrSet{rrset}
+		zone.Rrsets = rrsets
+
+		//z, _, err := a.ListZone(DEFAULT_SERVER, zone.Id, zone)
+		resp, err := a.ZonesApi.PatchZone(auth_ctx, DEFAULT_SERVER, zone.Id, zone)
+		log.Debugf("[PatchZone] resp: %+v", resp)
+		log.Debugf("[PatchZone] resp.Body: %+v", printHTTPResponseBody(resp))
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
