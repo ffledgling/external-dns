@@ -4,8 +4,10 @@ import (
 	//"strings"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -19,7 +21,6 @@ const (
 
 	DEFAULT_SERVER = "localhost" // We only talk to the Authoritative server, so this is always localhost
 	DEFAULT_TTL    = 300
-	DEFAULT_ZONE   = "kube-test.skae.tower-research.com." // TODO: We should be calculating which zone we need to insert a record into
 
 	MAX_UINT32 = ^uint32(0)
 	MAX_INT32  = MAX_UINT32 >> 1
@@ -97,82 +98,139 @@ func convertRRSetToEndpoints(rr pgo.RrSet) (endpoints []*endpoint.Endpoint, _ er
 	return endpoints, nil
 }
 
-func EndpointsToRRSets(endpoints []*endpoint.Endpoint) (rrsets []pgo.RrSet, _ error) {
+func (p *PDNSProvider) Zones() (zones []pgo.Zone, _ error) {
+	zones, _, err := p.client.ZonesApi.ListZones(p.auth_ctx, DEFAULT_SERVER)
+	if err != nil {
+		log.Warnf("Unable to fetch zones. %v", err)
+		return nil, err
+	}
+
+	return zones, nil
+
+}
+
+func (p *PDNSProvider) EndpointsToZones(endpoints []*endpoint.Endpoint, changetype string) (zonelist []pgo.Zone, _ error) {
 	// TODO: ffledgling
+	// To convert to RRSets, we need to club changesets by zone first, then by name, then type
+	/* eg.
+	    { "example.com":
+		{ "app.example.com":
+		    { "A": ["192.168.0.1", "8.8.8.8"] }
+		    { "TXT": ["\"heritage=external-dns,external-dns/owner=example\""] }
+		}
+	    }
+	*/
+	mastermap := make(map[string]map[string]map[string][]*endpoint.Endpoint)
+	zoneNameStructMap := map[string]pgo.Zone{}
 
-	return rrsets, nil
+	zones, err := p.Zones()
+
+	if err != nil {
+		return nil, err
+	}
+	// Identify zones we control
+	for _, z := range zones {
+		mastermap[z.Name] = make(map[string]map[string][]*endpoint.Endpoint)
+		zoneNameStructMap[z.Name] = z
+	}
+
+	for _, ep := range endpoints {
+		// Identify which zone an endpoint belongs to
+		dnsname := ensureTrailingDot(ep.DNSName)
+		zname := ""
+		for z := range mastermap {
+			if strings.HasSuffix(dnsname, z) && len(dnsname) > len(zname) {
+				zname = z
+			}
+		}
+
+		// We can encounter a DNS name multiple times (different record types), we only create a map the first time
+		if _, ok := mastermap[zname][dnsname]; !ok {
+			mastermap[zname][dnsname] = make(map[string][]*endpoint.Endpoint)
+		}
+
+		// We can get multiple targets for the same record type (eg. Multiple A records for a service)
+		if _, ok := mastermap[zname][dnsname][ep.RecordType]; !ok {
+			mastermap[zname][dnsname][ep.RecordType] = make([]*endpoint.Endpoint, 0)
+		}
+
+		mastermap[zname][dnsname][ep.RecordType] = append(mastermap[zname][dnsname][ep.RecordType], ep)
+
+	}
+
+	log.Debugf("Conversion Map: %+v", mastermap)
+
+	for zname := range mastermap {
+
+		zone := zoneNameStructMap[zname]
+		zone.Rrsets = []pgo.RrSet{}
+		for rrname := range mastermap[zname] {
+			for rtype := range mastermap[zname][rrname] {
+				rrset := pgo.RrSet{}
+				rrset.Name = rrname
+				rrset.Type_ = rtype
+				rrset.Changetype = changetype
+				// TODO: We should check the typecasting here because we're down casting from int64 to int32
+				rttl := mastermap[zname][rrname][rtype][0].RecordTTL
+				if int64(rttl) > int64(MAX_INT32) {
+					return nil, errors.New("Value of record TTL overflows, limited to int32")
+				}
+				rrset.Ttl = int32(rttl)
+				records := []pgo.Record{}
+				for _, e := range mastermap[zname][rrname][rtype] {
+					records = append(records, pgo.Record{Content: e.Target})
+
+				}
+				rrset.Records = records
+				zone.Rrsets = append(zone.Rrsets, rrset)
+			}
+
+		}
+
+		// Skip the empty zones (likely ones we don't control)
+		if len(zone.Rrsets) > 0 {
+			jso, _ := json.Marshal(zone)
+			log.Debugf("JSON of Zone:\n%s", string(jso))
+			zonelist = append(zonelist, zone)
+		}
+
+	}
+
+	log.Debugf("Conversion ZoneList: %+v", zonelist)
+
+	return zonelist, nil
 }
 
-func EndpointToRRSet(e *endpoint.Endpoint) (rr pgo.RrSet, _ error) {
-	// Theoretically an RRSet encapsulates more than one record of the same type.
-	// For example multiple A records are clubbed under the same RRSet
-	// Using an RRSet that encapsulates only one endpoint (record in PDNS terms)
-	// and then using it to patch via PDNS API might result in lost records
-
-	rr.Name = ensureTrailingDot(e.DNSName)
-	// Check we don't cause an overflow by typecasting int64 to int32
-	if int64(e.RecordTTL) > int64(MAX_INT32) {
-		return rr, errors.New("Value of record TTL overflows, limited to int32")
-	}
-	var TTL int32
-	if e.RecordTTL == 0 {
-		TTL = DEFAULT_TTL
+func (p *PDNSProvider) DeleteRecords(endpoints []*endpoint.Endpoint) error {
+	if zonelist, err := p.EndpointsToZones(endpoints, "DELETE"); err != nil {
+		return err
 	} else {
-		TTL = int32(e.RecordTTL)
-	}
-	rr.Ttl = TTL
-	rr.Type_ = e.RecordType
-	rr.Records = append(rr.Records, pgo.Record{Content: e.Target, Disabled: false, SetPtr: false})
+		for _, zone := range zonelist {
+			resp, err := p.client.ZonesApi.PatchZone(p.auth_ctx, DEFAULT_SERVER, zone.Id, zone)
+			log.Debugf("Patch response: %s", printHTTPResponseBody(resp))
+			if err != nil {
+				return err
+			}
 
-	return rr, nil
-}
-func (p *PDNSProvider) DeleteRecord(endpoint *endpoint.Endpoint) error {
-	rrset, err := EndpointToRRSet(endpoint)
-	if err != nil {
-		return err
+		}
 	}
-	// Necessary for deleting records
-	rrset.Changetype = "DELETE"
-	log.Debugf("[EndpointToRRSet] RRSet: %+v", rrset)
-	zone := pgo.Zone{}
-	zone.Name = "kube-test.skae.tower-research.com."
-	zone.Id = "kube-test.skae.tower-research.com."
-	zone.Kind = "Native"
-	rrsets := []pgo.RrSet{rrset}
-	zone.Rrsets = rrsets
-
-	resp, err := p.client.ZonesApi.PatchZone(p.auth_ctx, DEFAULT_SERVER, zone.Id, zone)
-	log.Debugf("[PatchZone] resp: %+v", resp)
-	log.Debugf("[PatchZone] resp.Body: %+v", printHTTPResponseBody(resp))
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func (p *PDNSProvider) ReplaceRecord(endpoint *endpoint.Endpoint) error {
-	rrset, err := EndpointToRRSet(endpoint)
-	if err != nil {
-		return err
-	}
-	// Necessary for creating or modifying records
-	rrset.Changetype = "REPLACE"
-	log.Debugf("[EndpointToRRSet] RRSet: %+v", rrset)
-	zone := pgo.Zone{}
-	zone.Name = "kube-test.skae.tower-research.com."
-	zone.Id = "kube-test.skae.tower-research.com."
-	zone.Kind = "Native"
-	rrsets := []pgo.RrSet{rrset}
-	zone.Rrsets = rrsets
+func (p *PDNSProvider) ReplaceRecords(endpoints []*endpoint.Endpoint) error {
 
-	resp, err := p.client.ZonesApi.PatchZone(p.auth_ctx, DEFAULT_SERVER, zone.Id, zone)
-	log.Debugf("[PatchZone] resp: %+v", resp)
-	log.Debugf("[PatchZone] resp.Body: %+v", printHTTPResponseBody(resp))
-	if err != nil {
+	if zonelist, err := p.EndpointsToZones(endpoints, "REPLACE"); err != nil {
 		return err
-	}
+	} else {
+		for _, zone := range zonelist {
+			resp, err := p.client.ZonesApi.PatchZone(p.auth_ctx, DEFAULT_SERVER, zone.Id, zone)
+			log.Debugf("Patch response: %s", printHTTPResponseBody(resp))
+			if err != nil {
+				return err
+			}
 
+		}
+	}
 	return nil
 }
 
@@ -186,16 +244,16 @@ func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 	}
 
 	for _, zone := range zones {
-		log.Debugf("zone: %+v", zone)
+		//log.Debugf("zone: %+v", zone)
 		z, _, err := p.client.ZonesApi.ListZone(p.auth_ctx, DEFAULT_SERVER, zone.Id)
 		if err != nil {
 			log.Warnf("Unable to fetch data for %v. %v", zone.Id, err)
 			return nil, err
 		}
 
-		log.Debugf("zone data: %+v", z)
+		//log.Debugf("zone data: %+v", z)
 		for _, rr := range z.Rrsets {
-			log.Debugf("rrset: %+v", rr)
+			//log.Debugf("rrset: %+v", rr)
 			e, err := convertRRSetToEndpoints(rr)
 			if err != nil {
 				return nil, err
@@ -212,23 +270,26 @@ func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 
 	for _, change := range changes.Create {
 		log.Debugf("CREATE: %+v", change)
-		p.ReplaceRecord(change)
+		//p.ReplaceRecord(change)
 	}
 
+	p.ReplaceRecords(changes.Create)
+
 	for _, change := range changes.UpdateOld {
-		log.Debugf("UPDATE-OLD: %+v", change)
 		// Since PDNS "Patches", we don't need to specify the "old" record.
 		// The Update New change type will automatically take care of replacing the old RRSet with the new one
+		log.Debugf("UPDATE-OLD: %+v", change)
 	}
 
 	for _, change := range changes.UpdateNew {
 		log.Debugf("UPDATE-NEW: %+v", change)
-		p.ReplaceRecord(change)
 	}
+	p.ReplaceRecords(changes.UpdateNew)
 
 	for _, change := range changes.Delete {
 		log.Debugf("DELETE: %+v", change)
-		p.DeleteRecord(change)
+		//p.DeleteRecord(change)
 	}
+	p.DeleteRecords(changes.Delete)
 	return nil
 }

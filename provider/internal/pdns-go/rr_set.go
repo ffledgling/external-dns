@@ -18,7 +18,7 @@ type RrSet struct {
 	Type_ string `json:"type,omitempty"`
 
 	// DNS TTL of the records, in seconds. MUST NOT be included when changetype is set to “DELETE”.
-	Ttl int32 `json:"ttl,omitempty"`
+	Ttl int32 `json:"ttl"`
 
 	// MUST be added when updating the RRSet. Must be REPLACE or DELETE. With DELETE, all existing RRs matching name and type will be deleted, including all comments. With REPLACE: when records is present, all existing RRs matching name and type will be deleted, and then new records given in records will be created. If no records are left, any existing comments will be deleted as well. When comments is present, all existing comments for the RRs matching name and type will be deleted, and then new comments given in comments will be created.
 	Changetype string `json:"changetype,omitempty"`
