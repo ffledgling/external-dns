@@ -160,6 +160,24 @@ func (sc *serviceSource) generateEndpoints(svc *v1.Service, hostname string) []*
 			endpoints = append(endpoints, extractServiceIps(svc, hostname)...)
 		}
 	}
+	// Always called ExternalIps
+	endpoints = append(endpoints, extractExternalIps(svc, hostname)...)
+	return endpoints
+}
+
+func extractExternalIps(svc *v1.Service, hostname string) []*endpoint.Endpoint {
+	log.Debug("extractExternalIps called")
+	var endpoints []*endpoint.Endpoint
+
+	ttl, err := getTTLFromAnnotations(svc.Annotations)
+	if err != nil {
+		log.Warn(err)
+	}
+	// Create a corresponding endpoint for each configured external entrypoint.
+	for _, exip := range svc.Spec.ExternalIPs {
+		log.Debug(exip)
+		endpoints = append(endpoints, endpoint.NewEndpointWithTTL(hostname, exip, endpoint.RecordTypeA, ttl))
+	}
 	return endpoints
 }
 

@@ -1,11 +1,11 @@
 package provider
 
 import (
-	//"strings"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"strings"
 
@@ -24,9 +24,6 @@ const (
 	// Unless we use something like pdnsproxy (discontinued upsteam), this value will _always_ be localhost
 	defaultServerID = "localhost"
 	defaultTTL      = 300
-
-	maxUInt32 = ^uint32(0)
-	maxInt32  = maxUInt32 >> 1
 
 	// This is effectively an enum for "pgo.RrSet.changetype"
 	// TODO: Can we somehow get this from the pgo swagger client library itself?
@@ -64,21 +61,21 @@ func NewPDNSProvider(server string, apikey string, domainFilter DomainFilter, dr
 
 	// Do some input validation
 
+	if apikey == "" {
+		return nil, errors.New("Missing API Key for PDNS. Specify using --pdns-api-key=")
+	}
+
+	if len(domainFilter.filters) != 1 && domainFilter.filters[0] != "" {
+		return nil, errors.New("PDNS Provider does not support domain filter.")
+	}
 	// We do not support dry running, exit safely instead of surprising the user
 	// TODO: Add Dry Run support
 	if dryRun {
-		log.Fatalf("PDNS Provider does not currently support dry-run, stopping.")
+		return nil, errors.New("PDNS Provider does not currently support dry-run.")
 	}
 
 	if server == "localhost" {
-		log.Warnf("PDNS Server is set to localhost, this is likely not what you want. Specify using --pdns-server=")
-	}
-
-	if apikey == "" {
-		log.Warnf("API Key for PDNS is empty. Specify using --pdns-api-key=")
-	}
-	if len(domainFilter.filters) == 0 {
-		log.Warnf("Domain Filter is not supported by PDNS. It will be ignored.")
+		log.Warnf("PDNS Server is set to localhost, this may not be what you want. Specify using --pdns-server=")
 	}
 
 	provider := &PDNSProvider{}
@@ -96,12 +93,14 @@ func NewPDNSProvider(server string, apikey string, domainFilter DomainFilter, dr
 	return provider, nil
 }
 
-func convertRRSetToEndpoints(rr pgo.RrSet) (endpoints []*endpoint.Endpoint, _ error) {
+func (p *PDNSProvider) convertRRSetToEndpoints(rr pgo.RrSet) (endpoints []*endpoint.Endpoint, _ error) {
 	endpoints = []*endpoint.Endpoint{}
 
 	for _, record := range rr.Records {
-		//func NewEndpointWithTTL(dnsName, target, recordType string, ttl TTL) *Endpoint
-		endpoints = append(endpoints, endpoint.NewEndpointWithTTL(rr.Name, record.Content, rr.Type_, endpoint.TTL(rr.Ttl)))
+		// If a record is "Disabled", it's not supposed to be "visible"
+		if !record.Disabled {
+			endpoints = append(endpoints, endpoint.NewEndpointWithTTL(rr.Name, record.Content, rr.Type_, endpoint.TTL(rr.Ttl)))
+		}
 	}
 
 	return endpoints, nil
@@ -120,7 +119,7 @@ func (p *PDNSProvider) Zones() (zones []pgo.Zone, _ error) {
 }
 
 // convertEndpointsToZones marshals endpoints into pdns compatible Zone structs
-func (p *PDNSProvider) convertEndpointsToZones(endpoints []*endpoint.Endpoint, changetype pdnsChangeType) (zonelist []pgo.Zone, _ error) {
+func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, changetype pdnsChangeType) (zonelist []pgo.Zone, _ error) {
 	/* eg of mastermap
 	    { "example.com":
 		{ "app.example.com":
@@ -178,7 +177,7 @@ func (p *PDNSProvider) convertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 				rrset.Type_ = rtype
 				rrset.Changetype = string(changetype)
 				rttl := mastermap[zname][rrname][rtype][0].RecordTTL
-				if int64(rttl) > int64(maxInt32) {
+				if int64(rttl) > int64(math.MaxInt32) {
 					return nil, errors.New("Value of record TTL overflows, limited to int32")
 				}
 				rrset.Ttl = int32(rttl)
@@ -207,13 +206,17 @@ func (p *PDNSProvider) convertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 
 // mutateRecords takes a list of endpoints and creates, replaces or deletes them based on the changetype
 func (p *PDNSProvider) mutateRecords(endpoints []*endpoint.Endpoint, changetype pdnsChangeType) error {
-	zonelist, err := p.convertEndpointsToZones(endpoints, changetype)
+	zonelist, err := p.ConvertEndpointsToZones(endpoints, changetype)
 	if err != nil {
 		return err
 	}
 	for _, zone := range zonelist {
-		jso, _ := json.Marshal(zone)
-		log.Debugf("Struct for PatchZone:\n%s", string(jso))
+		jso, err := json.Marshal(zone)
+		if err != nil {
+			log.Debugf("JSON Marshal for zone struct failed!")
+		} else {
+			log.Debugf("Struct for PatchZone:\n%s", string(jso))
+		}
 
 		resp, err := p.client.ZonesApi.PatchZone(p.authCtx, defaultServerID, zone.Id, zone)
 		if err != nil {
@@ -241,7 +244,7 @@ func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 		}
 
 		for _, rr := range z.Rrsets {
-			e, err := convertRRSetToEndpoints(rr)
+			e, err := p.convertRRSetToEndpoints(rr)
 			if err != nil {
 				return nil, err
 			}
