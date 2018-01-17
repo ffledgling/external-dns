@@ -1328,6 +1328,7 @@ type CdnSettings struct {
 	// Possible values:
 	//   "30fps"
 	//   "60fps"
+	//   "variable"
 	FrameRate string `json:"frameRate,omitempty"`
 
 	// IngestionInfo: The ingestionInfo object contains information that
@@ -1353,6 +1354,7 @@ type CdnSettings struct {
 	//   "360p"
 	//   "480p"
 	//   "720p"
+	//   "variable"
 	Resolution string `json:"resolution,omitempty"`
 
 	// ForceSendFields is a list of field names (e.g. "Format") to
@@ -4722,6 +4724,10 @@ type LiveBroadcastContentDetails struct {
 	//   "closedCaptionsEmbedded"
 	//   "closedCaptionsHttpPost"
 	ClosedCaptionsType string `json:"closedCaptionsType,omitempty"`
+
+	// EnableAutoStart: This setting indicates whether auto start is enabled
+	// for this broadcast.
+	EnableAutoStart bool `json:"enableAutoStart,omitempty"`
 
 	// EnableClosedCaptions: This setting indicates whether HTTP POST closed
 	// captioning is enabled for this broadcast. The ingestion URL of the

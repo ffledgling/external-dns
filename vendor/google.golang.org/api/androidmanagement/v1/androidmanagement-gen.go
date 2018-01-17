@@ -531,6 +531,10 @@ type Device struct {
 	// devices will be in this state until they have applied policy.
 	AppliedState string `json:"appliedState,omitempty"`
 
+	// DeviceSettings: Device settings information. This information is only
+	// available when deviceSettingsEnabled is true in the device's policy.
+	DeviceSettings *DeviceSettings `json:"deviceSettings,omitempty"`
+
 	// DisabledReason: If the device state is DISABLED, an optional message
 	// that is displayed on the device indicating the reason the device is
 	// disabled. This field may be modified by an update request.
@@ -664,6 +668,68 @@ type Device struct {
 
 func (s *Device) MarshalJSON() ([]byte, error) {
 	type NoMethod Device
+	raw := NoMethod(*s)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
+}
+
+// DeviceSettings: Information about security related device settings on
+// device.
+type DeviceSettings struct {
+	// AdbEnabled: If the ADB is enabled Settings.Global.ADB_ENABLED.
+	AdbEnabled bool `json:"adbEnabled,omitempty"`
+
+	// DevelopmentSettingsEnabled: If the developer mode is enabled
+	// Settings.Global.DEVELOPMENT_SETTINGS_ENABLED.
+	DevelopmentSettingsEnabled bool `json:"developmentSettingsEnabled,omitempty"`
+
+	// EncryptionStatus: Encryption status from DevicePolicyManager.
+	//
+	// Possible values:
+	//   "ENCRYPTION_STATUS_UNSPECIFIED" - Unspecified. No device should
+	// have this type.
+	//   "UNSUPPORTED" - Encryption is not supported by the device.
+	//   "INACTIVE" - Encryption is supported by the device, but not
+	// currently active.
+	//   "ACTIVATING" - Encryption is not currently active, but is currently
+	// being activated.
+	//   "ACTIVE" - Encryption is active
+	//   "ACTIVE_DEFAULT_KEY" - Encryption is active, but an encryption key
+	// is not set by the user
+	//   "ACTIVE_PER_USER" - Encrpyiton is active, and the encryption key is
+	// tied to the user profile.
+	EncryptionStatus string `json:"encryptionStatus,omitempty"`
+
+	// IsDeviceSecure: Device secured with PIN/password.
+	IsDeviceSecure bool `json:"isDeviceSecure,omitempty"`
+
+	// IsEncrypted: Whether the storage encryption is enabled
+	// DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE or
+	// DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE_PER_USER in N+ devices.
+	IsEncrypted bool `json:"isEncrypted,omitempty"`
+
+	// UnknownSourcesEnabled: If installing apps from unknown sources is
+	// enabled. Settings.Secure.INSTALL_NON_MARKET_APPS.
+	UnknownSourcesEnabled bool `json:"unknownSourcesEnabled,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "AdbEnabled") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "AdbEnabled") to include in
+	// API requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. However, any field with an
+	// empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
+}
+
+func (s *DeviceSettings) MarshalJSON() ([]byte, error) {
+	type NoMethod DeviceSettings
 	raw := NoMethod(*s)
 	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
@@ -1833,8 +1899,8 @@ func (s *PersistentPreferredActivity) MarshalJSON() ([]byte, error) {
 // Policy: A policy, which governs behavior for a device.
 type Policy struct {
 	// AccountTypesWithManagementDisabled: Account types that cannot be
-	// managed by the user. <i>Requires the beta version of Android Cloud
-	// Policy.</i>
+	// managed by the user. <i>Requires the beta version of the Android
+	// Device Policy app.</i>
 	AccountTypesWithManagementDisabled []string `json:"accountTypesWithManagementDisabled,omitempty"`
 
 	// AddUserDisabled: Whether adding new users and profiles is disabled.
@@ -1845,7 +1911,8 @@ type Policy struct {
 	AdjustVolumeDisabled bool `json:"adjustVolumeDisabled,omitempty"`
 
 	// AlwaysOnVpnPackage: Configuration for an always-on VPN connection.
-	// <i>Requires the beta version of Android Cloud Policy.</i>
+	// Use with vpn_config_disabled to prevent modification of this setting.
+	// <i>Requires the beta version of the Android Device Policy app.</i>
 	AlwaysOnVpnPackage *AlwaysOnVpnPackage `json:"alwaysOnVpnPackage,omitempty"`
 
 	// Applications: Policy applied to apps.
@@ -1862,24 +1929,26 @@ type Policy struct {
 	BlockApplicationsEnabled bool `json:"blockApplicationsEnabled,omitempty"`
 
 	// BluetoothConfigDisabled: Whether configuring bluetooth is disabled.
-	// <i>Requires the beta version of Android Cloud Policy.</i>
+	// <i>Requires the beta version of the Android Device Policy app.</i>
 	BluetoothConfigDisabled bool `json:"bluetoothConfigDisabled,omitempty"`
 
 	// BluetoothContactSharingDisabled: Whether bluetooth contact sharing is
-	// disabled. <i>Requires the beta version of Android Cloud Policy.</i>
+	// disabled. <i>Requires the beta version of the Android Device Policy
+	// app.</i>
 	BluetoothContactSharingDisabled bool `json:"bluetoothContactSharingDisabled,omitempty"`
 
 	// BluetoothDisabled: Whether bluetooth is disabled. Prefer this setting
 	// over bluetooth_config_disabled because bluetooth_config_disabled can
-	// be bypassed by the user. <i>Requires the beta version of Android
-	// Cloud Policy.</i>
+	// be bypassed by the user. <i>Requires the beta version of the Android
+	// Device Policy app.</i>
 	BluetoothDisabled bool `json:"bluetoothDisabled,omitempty"`
 
 	// CameraDisabled: Whether all cameras on the device are disabled.
 	CameraDisabled bool `json:"cameraDisabled,omitempty"`
 
 	// CellBroadcastsConfigDisabled: Whether configuring cell broadcast is
-	// disabled. <i>Requires the beta version of Android Cloud Policy.</i>
+	// disabled. <i>Requires the beta version of the Android Device Policy
+	// app.</i>
 	CellBroadcastsConfigDisabled bool `json:"cellBroadcastsConfigDisabled,omitempty"`
 
 	// ComplianceRules: Rules declaring which mitigating actions to take
@@ -1889,16 +1958,17 @@ type Policy struct {
 	ComplianceRules []*ComplianceRule `json:"complianceRules,omitempty"`
 
 	// CreateWindowsDisabled: Whether creating windows besides app windows
-	// is disabled. <i>Requires the beta version of Android Cloud
-	// Policy.</i>
+	// is disabled. <i>Requires the beta version of the Android Device
+	// Policy app.</i>
 	CreateWindowsDisabled bool `json:"createWindowsDisabled,omitempty"`
 
 	// CredentialsConfigDisabled: Whether configuring user credentials is
-	// disabled. <i>Requires the beta version of Android Cloud Policy.</i>
+	// disabled. <i>Requires the beta version of the Android Device Policy
+	// app.</i>
 	CredentialsConfigDisabled bool `json:"credentialsConfigDisabled,omitempty"`
 
 	// DataRoamingDisabled: Whether roaming data services are disabled.
-	// <i>Requires the beta version of Android Cloud Policy.</i>
+	// <i>Requires the beta version of the Android Device Policy app.</i>
 	DataRoamingDisabled bool `json:"dataRoamingDisabled,omitempty"`
 
 	// DebuggingFeaturesAllowed: Whether the user is allowed to enable
@@ -1918,8 +1988,8 @@ type Policy struct {
 	DefaultPermissionPolicy string `json:"defaultPermissionPolicy,omitempty"`
 
 	// EnsureVerifyAppsEnabled: Whether application verification is forced
-	// to be enabled. <i>Requires the beta version of Android Cloud
-	// Policy.</i>
+	// to be enabled. <i>Requires the beta version of the Android Device
+	// Policy app.</i>
 	EnsureVerifyAppsEnabled bool `json:"ensureVerifyAppsEnabled,omitempty"`
 
 	// FactoryResetDisabled: Whether factory resetting from settings is
@@ -1938,7 +2008,7 @@ type Policy struct {
 	FunDisabled bool `json:"funDisabled,omitempty"`
 
 	// InstallAppsDisabled: Whether user installation of apps is disabled.
-	// <i>Requires the beta version of Android Cloud Policy.</i>
+	// <i>Requires the beta version of the Android Device Policy app.</i>
 	InstallAppsDisabled bool `json:"installAppsDisabled,omitempty"`
 
 	// InstallUnknownSourcesAllowed: Whether the user is allowed to enable
@@ -1950,7 +2020,8 @@ type Policy struct {
 	KeyguardDisabled bool `json:"keyguardDisabled,omitempty"`
 
 	// KeyguardDisabledFeatures: Disabled keyguard customizations, such as
-	// widgets. <i>Requires the beta version of Android Cloud Policy.</i>
+	// widgets. <i>Requires the beta version of the Android Device Policy
+	// app.</i>
 	//
 	// Possible values:
 	//   "KEYGUARD_DISABLED_FEATURE_UNSPECIFIED" - This value is ignored.
@@ -1970,9 +2041,16 @@ type Policy struct {
 	// customizations.
 	KeyguardDisabledFeatures []string `json:"keyguardDisabledFeatures,omitempty"`
 
+	// KioskCustomLauncherEnabled: Flag to specify if kiosk custom launcher
+	// is enabled. If it is enabled the value for receiver_activity in
+	// PersistentPreferredActivity related to home intent will be ignored.
+	// When custom launcher is enabled, the kiosk will start in launcher
+	// mode and not locked to a specific application.
+	KioskCustomLauncherEnabled bool `json:"kioskCustomLauncherEnabled,omitempty"`
+
 	// LongSupportMessage: A message displayed to the user in the device
-	// administators settings screen. <i>Requires the beta version of
-	// Android Cloud Policy.</i>
+	// administators settings screen. <i>Requires the beta version of the
+	// Android Device Policy app.</i>
 	LongSupportMessage *UserFacingMessage `json:"longSupportMessage,omitempty"`
 
 	// MaximumTimeToLock: Maximum time in milliseconds for user activity
@@ -1981,7 +2059,8 @@ type Policy struct {
 	MaximumTimeToLock int64 `json:"maximumTimeToLock,omitempty,string"`
 
 	// MobileNetworksConfigDisabled: Whether configuring mobile networks is
-	// disabled. <i>Requires the beta version of Android Cloud Policy.</i>
+	// disabled. <i>Requires the beta version of the Android Device Policy
+	// app.</i>
 	MobileNetworksConfigDisabled bool `json:"mobileNetworksConfigDisabled,omitempty"`
 
 	// ModifyAccountsDisabled: Whether adding or removing accounts is
@@ -1989,8 +2068,8 @@ type Policy struct {
 	ModifyAccountsDisabled bool `json:"modifyAccountsDisabled,omitempty"`
 
 	// MountPhysicalMediaDisabled: Whether the user mounting physical
-	// external media is disabled. <i>Requires the beta version of Android
-	// Cloud Policy.</i>
+	// external media is disabled. <i>Requires the beta version of the
+	// Android Device Policy app.</i>
 	MountPhysicalMediaDisabled bool `json:"mountPhysicalMediaDisabled,omitempty"`
 
 	// Name: The name of the policy in the form
@@ -2009,7 +2088,7 @@ type Policy struct {
 	NetworkEscapeHatchEnabled bool `json:"networkEscapeHatchEnabled,omitempty"`
 
 	// NetworkResetDisabled: Whether resetting network settings is disabled.
-	// <i>Requires the beta version of Android Cloud Policy.</i>
+	// <i>Requires the beta version of the Android Device Policy app.</i>
 	NetworkResetDisabled bool `json:"networkResetDisabled,omitempty"`
 
 	// OpenNetworkConfiguration: Network configuration for the device. See
@@ -2017,11 +2096,12 @@ type Policy struct {
 	OpenNetworkConfiguration googleapi.RawMessage `json:"openNetworkConfiguration,omitempty"`
 
 	// OutgoingBeamDisabled: Whether using NFC to beam out data from apps is
-	// disabled. <i>Requires the beta version of Android Cloud Policy.</i>
+	// disabled. <i>Requires the beta version of the Android Device Policy
+	// app.</i>
 	OutgoingBeamDisabled bool `json:"outgoingBeamDisabled,omitempty"`
 
 	// OutgoingCallsDisabled: Whether outgoing calls are disabled.
-	// <i>Requires the beta version of Android Cloud Policy.</i>
+	// <i>Requires the beta version of the Android Device Policy app.</i>
 	OutgoingCallsDisabled bool `json:"outgoingCallsDisabled,omitempty"`
 
 	// PasswordRequirements: Password requirements.
@@ -2030,7 +2110,7 @@ type Policy struct {
 	// PermittedInputMethods: If present, only input methods provided by
 	// packages in this list are permitted. If this field is present, but
 	// the list is empty, then only system input methods are permitted.
-	// <i>Requires the beta version of Android Cloud Policy.</i>
+	// <i>Requires the beta version of the Android Device Policy app.</i>
 	PermittedInputMethods *PackageNameList `json:"permittedInputMethods,omitempty"`
 
 	// PersistentPreferredActivities: Default intent handler activities.
@@ -2042,7 +2122,7 @@ type Policy struct {
 	// general internal filtering a global HTTP proxy may be useful. If the
 	// proxy is not accessible, network access may break. The global proxy
 	// is only a recommendation and some apps may ignore it. <i>Requires the
-	// beta version of Android Cloud Policy.</i>
+	// beta version of the Android Device Policy app.</i>
 	RecommendedGlobalProxy *ProxyInfo `json:"recommendedGlobalProxy,omitempty"`
 
 	// RemoveUserDisabled: Whether removing other users is disabled.
@@ -2056,20 +2136,20 @@ type Policy struct {
 	ScreenCaptureDisabled bool `json:"screenCaptureDisabled,omitempty"`
 
 	// SetUserIconDisabled: Whether changing the user icon is disabled.
-	// <i>Requires the beta version of Android Cloud Policy.</i>
+	// <i>Requires the beta version of the Android Device Policy app.</i>
 	SetUserIconDisabled bool `json:"setUserIconDisabled,omitempty"`
 
 	// SetWallpaperDisabled: Whether changing the wallpaper is disabled.
-	// <i>Requires the beta version of Android Cloud Policy.</i>
+	// <i>Requires the beta version of the Android Device Policy app.</i>
 	SetWallpaperDisabled bool `json:"setWallpaperDisabled,omitempty"`
 
 	// ShortSupportMessage: A message displayed to the user in the settings
 	// screen wherever functionality has been disabled by the admin.
-	// <i>Requires the beta version of Android Cloud Policy.</i>
+	// <i>Requires the beta version of the Android Device Policy app.</i>
 	ShortSupportMessage *UserFacingMessage `json:"shortSupportMessage,omitempty"`
 
 	// SmsDisabled: Whether sending or receiving SMS messages is disabled.
-	// <i>Requires the beta version of Android Cloud Policy.</i>
+	// <i>Requires the beta version of the Android Device Policy app.</i>
 	SmsDisabled bool `json:"smsDisabled,omitempty"`
 
 	// StatusBarDisabled: Whether the status bar is disabled. This disables
@@ -2098,12 +2178,13 @@ type Policy struct {
 	SystemUpdate *SystemUpdate `json:"systemUpdate,omitempty"`
 
 	// TetheringConfigDisabled: Whether configuring tethering and portable
-	// hotspots is disabled. <i>Requires the beta version of Android Cloud
-	// Policy.</i>
+	// hotspots is disabled. <i>Requires the beta version of the Android
+	// Device Policy app.</i>
 	TetheringConfigDisabled bool `json:"tetheringConfigDisabled,omitempty"`
 
 	// UninstallAppsDisabled: Whether user uninstallation of applications is
-	// disabled. <i>Requires the beta version of Android Cloud Policy.</i>
+	// disabled. <i>Requires the beta version of the Android Device Policy
+	// app.</i>
 	UninstallAppsDisabled bool `json:"uninstallAppsDisabled,omitempty"`
 
 	// UnmuteMicrophoneDisabled: Whether the microphone is muted and
@@ -2111,7 +2192,8 @@ type Policy struct {
 	UnmuteMicrophoneDisabled bool `json:"unmuteMicrophoneDisabled,omitempty"`
 
 	// UsbFileTransferDisabled: Whether transferring files over USB is
-	// disabled. <i>Requires the beta version of Android Cloud Policy.</i>
+	// disabled. <i>Requires the beta version of the Android Device Policy
+	// app.</i>
 	UsbFileTransferDisabled bool `json:"usbFileTransferDisabled,omitempty"`
 
 	// Version: The version of the policy. This is a read-only field. The
@@ -2119,7 +2201,7 @@ type Policy struct {
 	Version int64 `json:"version,omitempty,string"`
 
 	// VpnConfigDisabled: Whether configuring VPN is disabled. <i>Requires
-	// the beta version of Android Cloud Policy.</i>
+	// the beta version of the Android Device Policy app.</i>
 	VpnConfigDisabled bool `json:"vpnConfigDisabled,omitempty"`
 
 	// WifiConfigDisabled: Whether configuring WiFi access points is
@@ -2306,6 +2388,14 @@ type SoftwareInfo struct {
 	// AndroidBuildTime: Build time.
 	AndroidBuildTime string `json:"androidBuildTime,omitempty"`
 
+	// AndroidDevicePolicyVersionCode: The Android Device Policy app version
+	// code.
+	AndroidDevicePolicyVersionCode int64 `json:"androidDevicePolicyVersionCode,omitempty"`
+
+	// AndroidDevicePolicyVersionName: The Android Device Policy app version
+	// as displayed to the user.
+	AndroidDevicePolicyVersionName string `json:"androidDevicePolicyVersionName,omitempty"`
+
 	// AndroidVersion: The user visible Android version string, e.g. 6.0.1.
 	AndroidVersion string `json:"androidVersion,omitempty"`
 
@@ -2421,6 +2511,9 @@ func (s *Status) MarshalJSON() ([]byte, error) {
 // StatusReportingSettings: Settings controlling the behavior of status
 // reports.
 type StatusReportingSettings struct {
+	// DeviceSettingsEnabled: Whether device settings reporting is enabled.
+	DeviceSettingsEnabled bool `json:"deviceSettingsEnabled,omitempty"`
+
 	// DisplayInfoEnabled: Whether displays reporting is enabled.
 	DisplayInfoEnabled bool `json:"displayInfoEnabled,omitempty"`
 
@@ -2440,15 +2533,16 @@ type StatusReportingSettings struct {
 	// SoftwareInfoEnabled: Whether software info reporting is enabled.
 	SoftwareInfoEnabled bool `json:"softwareInfoEnabled,omitempty"`
 
-	// ForceSendFields is a list of field names (e.g. "DisplayInfoEnabled")
-	// to unconditionally include in API requests. By default, fields with
-	// empty values are omitted from API requests. However, any non-pointer,
-	// non-interface field appearing in ForceSendFields will be sent to the
-	// server regardless of whether the field is empty or not. This may be
-	// used to include empty fields in Patch requests.
+	// ForceSendFields is a list of field names (e.g.
+	// "DeviceSettingsEnabled") to unconditionally include in API requests.
+	// By default, fields with empty values are omitted from API requests.
+	// However, any non-pointer, non-interface field appearing in
+	// ForceSendFields will be sent to the server regardless of whether the
+	// field is empty or not. This may be used to include empty fields in
+	// Patch requests.
 	ForceSendFields []string `json:"-"`
 
-	// NullFields is a list of field names (e.g. "DisplayInfoEnabled") to
+	// NullFields is a list of field names (e.g. "DeviceSettingsEnabled") to
 	// include in API requests with the JSON null value. By default, fields
 	// with empty values are omitted from API requests. However, any field
 	// with an empty value appearing in NullFields will be sent to the

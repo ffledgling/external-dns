@@ -1021,6 +1021,7 @@ type ExportAgentRequest struct {
 	// AgentUri: Warning: Exporting agents to a URI is not implemented
 	// yet.
 	// This feature is coming soon.
+	//
 	// Optional. The Google Cloud Storage URI to export the agent to.
 	// Note: The URI must start with
 	// "gs://". If left unspecified, the serialized agent is returned
@@ -1053,11 +1054,28 @@ func (s *ExportAgentRequest) MarshalJSON() ([]byte, error) {
 // ExportAgentResponse: The response message for Agents.ExportAgent.
 type ExportAgentResponse struct {
 	// AgentContent: The exported agent.
+	//
+	// Example for how to export an agent to a zip file via a command
+	// line:
+	//
+	// curl \
+	//
+	// 'https://dialogflow.googleapis.com/v2beta1/projects/<project_name>/age
+	// nt:export'\
+	//   -X POST \
+	//   -H 'Authorization: Bearer '$(gcloud auth print-access-token) \
+	//   -H 'Accept: application/json' \
+	//   -H 'Content-Type: application/json' \
+	//   --compressed \
+	//   --data-binary '{}' \
+	// | grep agentContent | sed -e 's/.*"agentContent": "\([^"]*\)".*/\1/'
+	// \
+	// | base64 --decode > <agent zip file>
 	AgentContent string `json:"agentContent,omitempty"`
 
 	// AgentUri: The URI to a file containing the exported agent. This field
 	// is populated
-	// only if `agent_uri`
+	// only if `agent_uri` is specified in `ExportAgentRequest`.
 	AgentUri string `json:"agentUri,omitempty"`
 
 	// ForceSendFields is a list of field names (e.g. "AgentContent") to
@@ -1086,11 +1104,27 @@ func (s *ExportAgentResponse) MarshalJSON() ([]byte, error) {
 // ImportAgentRequest: The request message for Agents.ImportAgent.
 type ImportAgentRequest struct {
 	// AgentContent: The agent to import.
+	//
+	// Example for how to import an agent via the command line:
+	//
+	// curl \
+	//
+	// 'https://dialogflow.googleapis.com/v2beta1/projects/<project_name>/age
+	// nt:import\
+	//    -X POST \
+	//    -H 'Authorization: Bearer '$(gcloud auth print-access-token) \
+	//    -H 'Accept: application/json' \
+	//    -H 'Content-Type: application/json' \
+	//    --compressed \
+	//    --data-binary "{
+	//       'agentContent': '$(cat <agent zip file> | base64 -w 0)'
+	//    }"
 	AgentContent string `json:"agentContent,omitempty"`
 
 	// AgentUri: Warning: Importing agents from a URI is not implemented
 	// yet.
 	// This feature is coming soon.
+	//
 	// The URI to a Google Cloud Storage file containing the agent to
 	// import.
 	// Note: The URI must start with "gs://".
@@ -1762,23 +1796,29 @@ func (s *IntentMessageCarouselSelectItem) MarshalJSON() ([]byte, error) {
 
 // IntentMessageImage: The image response message.
 type IntentMessageImage struct {
+	// AccessibilityText: Optional. A text description of the image to be
+	// used for accessibility,
+	// e.g., screen readers.
+	AccessibilityText string `json:"accessibilityText,omitempty"`
+
 	// ImageUri: Optional. The public URI to an image file.
 	ImageUri string `json:"imageUri,omitempty"`
 
-	// ForceSendFields is a list of field names (e.g. "ImageUri") to
-	// unconditionally include in API requests. By default, fields with
+	// ForceSendFields is a list of field names (e.g. "AccessibilityText")
+	// to unconditionally include in API requests. By default, fields with
 	// empty values are omitted from API requests. However, any non-pointer,
 	// non-interface field appearing in ForceSendFields will be sent to the
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
 
-	// NullFields is a list of field names (e.g. "ImageUri") to include in
-	// API requests with the JSON null value. By default, fields with empty
-	// values are omitted from API requests. However, any field with an
-	// empty value appearing in NullFields will be sent to the server as
-	// null. It is an error if a field in this list has a non-empty value.
-	// This may be used to include null fields in Patch requests.
+	// NullFields is a list of field names (e.g. "AccessibilityText") to
+	// include in API requests with the JSON null value. By default, fields
+	// with empty values are omitted from API requests. However, any field
+	// with an empty value appearing in NullFields will be sent to the
+	// server as null. It is an error if a field in this list has a
+	// non-empty value. This may be used to include null fields in Patch
+	// requests.
 	NullFields []string `json:"-"`
 }
 
@@ -2628,13 +2668,13 @@ func (s *OriginalDetectIntentRequest) MarshalJSON() ([]byte, error) {
 
 // QueryInput: Represents the query input. It can contain either:
 //
-// 1.  an audio config which
+// 1.  An audio config which
 //     instructs the speech recognizer how to process the speech
-// audio,
+// audio.
 //
-// 2.  a conversational query in the form of text, or
+// 2.  A conversational query in the form of text,.
 //
-// 3.  an event that specifies which intent to trigger.
+// 3.  An event that specifies which intent to trigger.
 type QueryInput struct {
 	// AudioConfig: Instructs the speech recognizer how to process the
 	// speech audio.
@@ -2862,11 +2902,27 @@ func (s *QueryResult) UnmarshalJSON(data []byte) error {
 // RestoreAgentRequest: The request message for Agents.RestoreAgent.
 type RestoreAgentRequest struct {
 	// AgentContent: The agent to restore.
+	//
+	// Example for how to restore an agent via the command line:
+	//
+	// curl \
+	//
+	// 'https://dialogflow.googleapis.com/v2beta1/projects/<project_name>/age
+	// nt:restore\
+	//    -X POST \
+	//    -H 'Authorization: Bearer '$(gcloud auth print-access-token) \
+	//    -H 'Accept: application/json' \
+	//    -H 'Content-Type: application/json' \
+	//    --compressed \
+	//    --data-binary "{
+	//        'agentContent': '$(cat <agent zip file> | base64 -w 0)'
+	//    }" \
 	AgentContent string `json:"agentContent,omitempty"`
 
 	// AgentUri: Warning: Restoring agents from a URI is not implemented
 	// yet.
 	// This feature is coming soon.
+	//
 	// The URI to a Google Cloud Storage file containing the agent to
 	// restore.
 	// Note: The URI must start with "gs://".
