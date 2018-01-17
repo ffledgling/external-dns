@@ -11,9 +11,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	pgo "github.com/ffledgling/pdns-go"
 	"github.com/kubernetes-incubator/external-dns/endpoint"
 	"github.com/kubernetes-incubator/external-dns/plan"
-	pgo "github.com/kubernetes-incubator/external-dns/provider/internal/pdns-go"
 )
 
 type pdnsChangeType string
