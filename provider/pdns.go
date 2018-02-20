@@ -31,21 +31,6 @@ const (
 	pdnsReplace pdnsChangeType = "REPLACE"
 )
 
-// PDNSProvider is an implementation of the Provider interface for PowerDNS
-type PDNSProvider struct {
-	dryRun bool
-	// only consider hosted zones managing domains ending in this suffix
-	domainFilter DomainFilter
-	// filter hosted zones by type (e.g. private or public)
-	zoneTypeFilter ZoneTypeFilter
-
-	// Swagger API Client
-	client *pgo.APIClient
-
-	// Auth context to be passed to client requests, contains API keys etc.
-	authCtx context.Context
-}
-
 // Function for debug printing
 func stringifyHTTPResponseBody(r *http.Response) (body string) {
 
@@ -54,6 +39,38 @@ func stringifyHTTPResponseBody(r *http.Response) (body string) {
 	body = buf.String()
 	return body
 
+}
+
+// All of this interface and inherited client struct requires
+type PDNSAPIProvider interface {
+	ListZones() ([]pgo.Zone, *http.Response, error)
+	ListZone(zoneId string) (pgo.Zone, *http.Response, error)
+	PatchZone(zoneId string, zoneStruct pgo.Zone) (*http.Response, error)
+}
+
+type PDNSAPIClient struct {
+	dryRun  bool
+	authCtx context.Context
+	client  *pgo.APIClient
+}
+
+func (c *PDNSAPIClient) ListZones() ([]pgo.Zone, *http.Response, error) {
+	zones, resp, err := c.client.ZonesApi.ListZones(c.authCtx, defaultServerID)
+	return zones, resp, err
+}
+
+func (c *PDNSAPIClient) ListZone(zoneId string) (pgo.Zone, *http.Response, error) {
+	zones, resp, err := c.client.ZonesApi.ListZone(c.authCtx, defaultServerID, zoneId)
+	return zones, resp, err
+}
+func (c *PDNSAPIClient) PatchZone(zoneId string, zoneStruct pgo.Zone) (*http.Response, error) {
+	resp, err := c.client.ZonesApi.PatchZone(c.authCtx, defaultServerID, zoneId, zoneStruct)
+	return resp, err
+}
+
+// PDNSProvider is an implementation of the Provider interface for PowerDNS
+type PDNSProvider struct {
+	client PDNSAPIProvider
 }
 
 // NewPDNSProvider initializes a new PowerDNS based Provider.
@@ -79,17 +96,17 @@ func NewPDNSProvider(server string, apikey string, domainFilter DomainFilter, dr
 		log.Warnf("PDNS Server is set to localhost, this may not be what you want. Specify using --pdns-server=")
 	}
 
-	provider := &PDNSProvider{}
-
 	cfg := pgo.NewConfiguration()
 	cfg.Host = server
 	cfg.BasePath = server + apiBase
 
-	// Initialize a single client that we can use for all requests
-	provider.client = pgo.NewAPIClient(cfg)
-
-	// Configure PDNS API Key, which is sent via X-API-Key header to pdns server
-	provider.authCtx = context.WithValue(context.TODO(), pgo.ContextAPIKey, pgo.APIKey{Key: apikey})
+	provider := &PDNSProvider{
+		client: &PDNSAPIClient{
+			dryRun:  dryRun,
+			authCtx: context.WithValue(context.TODO(), pgo.ContextAPIKey, pgo.APIKey{Key: apikey}),
+			client:  pgo.NewAPIClient(cfg),
+		},
+	}
 
 	return provider, nil
 }
@@ -109,7 +126,7 @@ func (p *PDNSProvider) convertRRSetToEndpoints(rr pgo.RrSet) (endpoints []*endpo
 
 // Zones returns the list of all zones controlled by the pdns server as a list of pdns Zone structs
 func (p *PDNSProvider) Zones() (zones []pgo.Zone, _ error) {
-	zones, _, err := p.client.ZonesApi.ListZones(p.authCtx, defaultServerID)
+	zones, _, err := p.client.ListZones()
 	if err != nil {
 		log.Warnf("Unable to fetch zones. %v", err)
 		return nil, err
@@ -152,6 +169,8 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 				zname = z
 			}
 		}
+
+		// FIXME: We're assuming we have something in the mastermap[zname] here, what do we do if it's nil/empty? Reported by @fxpester on k8s.slack
 
 		// We can encounter a DNS name multiple times (different record types), we only create a map the first time
 		if _, ok := mastermap[zname][dnsname]; !ok {
@@ -219,7 +238,7 @@ func (p *PDNSProvider) mutateRecords(endpoints []*endpoint.Endpoint, changetype 
 			log.Debugf("Struct for PatchZone:\n%s", string(jso))
 		}
 
-		resp, err := p.client.ZonesApi.PatchZone(p.authCtx, defaultServerID, zone.Id, zone)
+		resp, err := p.client.PatchZone(zone.Id, zone)
 		if err != nil {
 			log.Debugf("PDNS API response: %s", stringifyHTTPResponseBody(resp))
 			return err
@@ -238,7 +257,7 @@ func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 	}
 
 	for _, zone := range zones {
-		z, _, err := p.client.ZonesApi.ListZone(p.authCtx, defaultServerID, zone.Id)
+		z, _, err := p.client.ListZone(zone.Id)
 		if err != nil {
 			log.Warnf("Unable to fetch data for %v. %v", zone.Id, err)
 			return nil, err
