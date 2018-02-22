@@ -4,6 +4,7 @@ import (
 	//"context"
 	//"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,6 +46,11 @@ var (
 	endpointsSimpleRecord = []*endpoint.Endpoint{
 		endpoint.NewEndpointWithTTL("example.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
 		endpoint.NewEndpointWithTTL("example.com", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
+	}
+
+	endpointsNonexistantZone = []*endpoint.Endpoint{
+		endpoint.NewEndpointWithTTL("does.not.exist.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
+		endpoint.NewEndpointWithTTL("does.not.exist.com", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
 	}
 
 	// RRSet with one record disabled
@@ -104,6 +110,13 @@ var (
 		endpoint.NewEndpointWithTTL("example.com", "4.4.4.4", endpoint.RecordTypeA, endpoint.TTL(300)),
 	}
 
+	endpointsMultipleZones = []*endpoint.Endpoint{
+		endpoint.NewEndpointWithTTL("example.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
+		endpoint.NewEndpointWithTTL("example.com", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
+		endpoint.NewEndpointWithTTL("mock.test", "9.9.9.9", endpoint.RecordTypeA, endpoint.TTL(300)),
+		endpoint.NewEndpointWithTTL("mock.test", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
+	}
+
 	//
 	//        	// This struct contains a lot more fields, but we only set the ones we care about
 	//        	ZoneExampleDotCom = pgo.Zone{
@@ -121,7 +134,52 @@ var (
 	//        		//Rrsets []RrSet `json:"rrsets,omitempty"`
 	//        	}
 	//
+	ZoneEmpty = pgo.Zone{
+		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
+		Id: "example.com",
+		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
+		Name: "example.com",
+		// Set to “Zone”
+		Type_: "Zone",
+		// API endpoint for this zone
+		Url: "/api/v1/servers/localhost/zones/example.com.",
+		// Zone kind, one of “Native”, “Master”, “Slave”
+		Kind: "Native",
+		// RRSets in this zone
+		Rrsets: []pgo.RrSet{},
+	}
+
+	ZoneEmpty2 = pgo.Zone{
+		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
+		Id: "mock.test",
+		// Name of the zone (e.g. “mock.test.”) MUST have a trailing dot
+		Name: "mock.test",
+		// Set to “Zone”
+		Type_: "Zone",
+		// API endpoint for this zone
+		Url: "/api/v1/servers/localhost/zones/mock.test.",
+		// Zone kind, one of “Native”, “Master”, “Slave”
+		Kind: "Native",
+		// RRSets in this zone
+		Rrsets: []pgo.RrSet{},
+	}
+
 	ZoneSimple = pgo.Zone{
+		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
+		Id: "example.com",
+		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
+		Name: "example.com",
+		// Set to “Zone”
+		Type_: "Zone",
+		// API endpoint for this zone
+		Url: "/api/v1/servers/localhost/zones/example.com.",
+		// Zone kind, one of “Native”, “Master”, “Slave”
+		Kind: "Native",
+		// RRSets in this zone
+		Rrsets: []pgo.RrSet{RRSetSimpleARecord, RRSetSimpleTXTRecord},
+	}
+
+	ZonePartial = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
 		Id: "example.com",
 		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
@@ -150,59 +208,174 @@ var (
 		// RRSets in this zone
 		Rrsets: []pgo.RrSet{RRSetCNAMERecord, RRSetTXTRecord, RRSetMultipleRecords},
 	}
+
+	ZoneEmptyToSimplePatch = pgo.Zone{
+		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
+		Id: "example.com",
+		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
+		Name: "example.com",
+		// Set to “Zone”
+		Type_: "Zone",
+		// API endpoint for this zone
+		Url: "/api/v1/servers/localhost/zones/example.com.",
+		// Zone kind, one of “Native”, “Master”, “Slave”
+		Kind: "Native",
+		// RRSets in this zone
+		Rrsets: []pgo.RrSet{
+			pgo.RrSet{
+				Name:       "example.com",
+				Type_:      "A",
+				Ttl:        300,
+				Changetype: "PATCH",
+				Records: []pgo.Record{
+					pgo.Record{
+						Content:  "8.8.8.8",
+						Disabled: false,
+						SetPtr:   false,
+					},
+				},
+				Comments: []pgo.Comment(nil),
+			},
+			pgo.RrSet{
+				Name:       "example.com",
+				Type_:      "TXT",
+				Ttl:        300,
+				Changetype: "PATCH",
+				Records: []pgo.Record{
+					pgo.Record{
+						Content:  "\"heritage=external-dns,external-dns/owner=tower-pdns\"",
+						Disabled: false,
+						SetPtr:   false,
+					},
+				},
+				Comments: []pgo.Comment(nil),
+			},
+		},
+	}
+	ZoneEmptyToSimplePatch2 = pgo.Zone{
+		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
+		Id: "mock.test",
+		// Name of the zone (e.g. “mock.test.”) MUST have a trailing dot
+		Name: "mock.test",
+		// Set to “Zone”
+		Type_: "Zone",
+		// API endpoint for this zone
+		Url: "/api/v1/servers/localhost/zones/mock.test.",
+		// Zone kind, one of “Native”, “Master”, “Slave”
+		Kind: "Native",
+		// RRSets in this zone
+		Rrsets: []pgo.RrSet{
+			pgo.RrSet{
+				Name:       "mock.test",
+				Type_:      "A",
+				Ttl:        300,
+				Changetype: "PATCH",
+				Records: []pgo.Record{
+					pgo.Record{
+						Content:  "9.9.9.9",
+						Disabled: false,
+						SetPtr:   false,
+					},
+				},
+				Comments: []pgo.Comment(nil),
+			},
+			pgo.RrSet{
+				Name:       "mock.test",
+				Type_:      "TXT",
+				Ttl:        300,
+				Changetype: "PATCH",
+				Records: []pgo.Record{
+					pgo.Record{
+						Content:  "\"heritage=external-dns,external-dns/owner=tower-pdns\"",
+						Disabled: false,
+						SetPtr:   false,
+					},
+				},
+				Comments: []pgo.Comment(nil),
+			},
+		},
+	}
+	ZoneEmptyToSimpleDelete = pgo.Zone{
+		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
+		Id: "example.com",
+		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
+		Name: "example.com",
+		// Set to “Zone”
+		Type_: "Zone",
+		// API endpoint for this zone
+		Url: "/api/v1/servers/localhost/zones/example.com.",
+		// Zone kind, one of “Native”, “Master”, “Slave”
+		Kind: "Native",
+		// RRSets in this zone
+		Rrsets: []pgo.RrSet{
+			pgo.RrSet{
+				Name:       "example.com",
+				Type_:      "A",
+				Ttl:        300,
+				Changetype: "DELETE",
+				Records: []pgo.Record{
+					pgo.Record{
+						Content:  "8.8.8.8",
+						Disabled: false,
+						SetPtr:   false,
+					},
+				},
+				Comments: []pgo.Comment(nil),
+			},
+			pgo.RrSet{
+				Name:       "example.com",
+				Type_:      "TXT",
+				Ttl:        300,
+				Changetype: "DELETE",
+				Records: []pgo.Record{
+					pgo.Record{
+						Content:  "\"heritage=external-dns,external-dns/owner=tower-pdns\"",
+						Disabled: false,
+						SetPtr:   false,
+					},
+				},
+				Comments: []pgo.Comment(nil),
+			},
+		},
+	}
 )
 
-//
-//        /*
-//        type mockApiClient struct {
-//        	ZonesApi ZonesApiInterface
-//        }
-//        */
-//        type mockApiClient pgo.APIClient
-//
-//        /*
-//        type ZonesApiInterface interface {
-//        	PatchZone(ctx context.Context, serverId string, zoneId string, zoneStruct pgo.Zone) (*http.Response, error)
-//        	ListZone(ctx context.Context, serverId string, zoneId string) (pgo.Zone, *http.Response, error)
-//        	ListZones(ctx context.Context, serverId string) ([]pgo.Zone, *http.Response, error)
-//        }
-//        */
-//
-//        type ZonesApiSuccess pgo.ZonesApiService
-//        type ZonesApiFail pgo.ZonesApiService
-//
-//        func (a *ZonesApiSuccess) PatchZone(ctx context.Context, serverId string, zoneId string, zoneStruct pgo.Zone) (*http.Response, error) {
-//        	return nil, nil
-//        }
-//        func (a *ZonesApiSuccess) ListZone(ctx context.Context, serverId string, zoneId string) (pgo.Zone, *http.Response, error) {
-//        	return ZoneSimple, nil, nil
-//        }
-//        func (a *ZonesApiSuccess) ListZones(ctx context.Context, serverId string) ([]pgo.Zone, *http.Response, error) {
-//        	return []pgo.Zone{ZoneSimple}, nil, nil
-//        }
-//
-//        func (a *ZonesApiFail) PatchZone(ctx context.Context, serverId string, zoneId string, zoneStruct pgo.Zone) (*http.Response, error) {
-//        	return nil, errors.New("Patching zone failed")
-//        }
-//        func (a *ZonesApiFail) ListZone(ctx context.Context, serverId string, zoneId string) (pgo.Zone, *http.Response, error) {
-//        	return pgo.Zone{}, nil, errors.New("Listing Zone failed")
-//        }
-//        func (a *ZonesApiFail) ListZones(ctx context.Context, serverId string) ([]pgo.Zone, *http.Response, error) {
-//        	return nil, nil, errors.New("Failed to retrieve zones")
-//        }
-//
-
+// API that returns a zone with multiple record types
 type PDNSAPIClientStub struct {
 }
 
 func (c *PDNSAPIClientStub) ListZones() ([]pgo.Zone, *http.Response, error) {
 	return []pgo.Zone{ZoneMixed}, nil, nil
 }
-
 func (c *PDNSAPIClientStub) ListZone(zoneId string) (pgo.Zone, *http.Response, error) {
 	return ZoneMixed, nil, nil
 }
 func (c *PDNSAPIClientStub) PatchZone(zoneId string, zoneStruct pgo.Zone) (*http.Response, error) {
+	return nil, nil
+}
+
+// API that returns a zone with no records
+type PDNSAPIClientStubEmptyZones struct {
+	// Keep track of all zones we recieve via PatchZone
+	patchedZones []pgo.Zone
+}
+
+func (c *PDNSAPIClientStubEmptyZones) ListZones() ([]pgo.Zone, *http.Response, error) {
+	return []pgo.Zone{ZoneEmpty, ZoneEmpty2}, nil, nil
+}
+func (c *PDNSAPIClientStubEmptyZones) ListZone(zoneId string) (pgo.Zone, *http.Response, error) {
+
+	if strings.Contains(zoneId, "example.com") {
+		return ZoneEmpty, nil, nil
+	} else if strings.Contains(zoneId, "mock.test") {
+		return ZoneEmpty2, nil, nil
+	} else {
+		return pgo.Zone{}, nil, nil
+	}
+
+}
+func (c *PDNSAPIClientStubEmptyZones) PatchZone(zoneId string, zoneStruct pgo.Zone) (*http.Response, error) {
+	c.patchedZones = append(c.patchedZones, zoneStruct)
 	return nil, nil
 }
 
@@ -226,19 +399,6 @@ func (suite *NewPDNSProviderTestSuite) TestPDNSProviderCreate() {
 	_, err = NewPDNSProvider("http://localhost:8081", "foo", NewDomainFilter([]string{""}), false)
 	assert.Nil(suite.T(), err, "Regular case should raise no error")
 }
-
-// Function accepts an implementation of the APIProvider Interface and returns
-// a PDNS provider. Useful for creating external-dns providers with the PDNS
-// API client mocked out
-/*
-func NewMockPDNSProvider(stub PDNSAPIProvider{}) (*PDNSProvider, error) {
-	provider := &PDNSProvider{
-		client: &stub{},
-	}
-
-	return provider, nil
-}
-*/
 
 func (suite *NewPDNSProviderTestSuite) TestPDNSRRSetToEndpoints() {
 	// Function definition: convertRRSetToEndpoints(rr pgo.RrSet) (endpoints []*endpoint.Endpoint, _ error)
@@ -266,7 +426,7 @@ func (suite *NewPDNSProviderTestSuite) TestPDNSRRSetToEndpoints() {
 }
 
 func (suite *NewPDNSProviderTestSuite) TestPDNSRecords() {
-	// Function definition: convertRRSetToEndpoints(rr pgo.RrSet) (endpoints []*endpoint.Endpoint, _ error)
+	// Function definition: Records() (endpoints []*endpoint.Endpoint, _ error)
 
 	// Create a new provider to run tests against
 	p := &PDNSProvider{
@@ -281,45 +441,36 @@ func (suite *NewPDNSProviderTestSuite) TestPDNSRecords() {
 
 }
 
-//
-//        func (suite *NewPDNSProviderTestSuite) TestPDNSEndpointsToZone() {
-//        	// function definition: (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, changetype pdnsChangeType) (zonelist []pgo.Zone, _ error)
-//
-//        	// Create a new provider to run tests against
-//        	_, err := NewPDNSProvider("http://localhost:8081", "foo", NewDomainFilter([]string{""}), false)
-//        	// Make sure we can create the provider correctly
-//        	assert.Nil(suite.T(), err)
-//        }
+func (suite *NewPDNSProviderTestSuite) TestConvertEndpointsToZones() {
+	// Function definition: ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, changetype pdnsChangeType) (zonelist []pgo.Zone, _ error)
+
+	// Create a new provider to run tests against
+	p := &PDNSProvider{
+		client: &PDNSAPIClientStubEmptyZones{},
+	}
+
+	// Check inserting endpoints from a single zone
+	zlist, err := p.ConvertEndpointsToZones(endpointsSimpleRecord, pdnsChangeType("PATCH"))
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), []pgo.Zone{ZoneEmptyToSimplePatch}, zlist)
+
+	// Check deleting endpoints from a single zone
+	zlist, err = p.ConvertEndpointsToZones(endpointsSimpleRecord, pdnsChangeType("DELETE"))
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), []pgo.Zone{ZoneEmptyToSimpleDelete}, zlist)
+
+	// Check endpoints from multiple zones
+	zlist, err = p.ConvertEndpointsToZones(endpointsMultipleZones, pdnsChangeType("PATCH"))
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), []pgo.Zone{ZoneEmptyToSimplePatch, ZoneEmptyToSimplePatch2}, zlist)
+
+	// Check endpoints from a zone that does not exist
+	zlist, err = p.ConvertEndpointsToZones(endpointsNonexistantZone, pdnsChangeType("PATCH"))
+	assert.NotNil(suite.T(), err)
+	assert.Equal(suite.T(), []pgo.Zone{}, zlist)
+
+}
+
 func TestNewPDNSProviderTestSuite(t *testing.T) {
 	suite.Run(t, new(NewPDNSProviderTestSuite))
 }
-
-//
-//        type MockTestSuite struct {
-//        	suite.Suite
-//        }
-//
-//        func (suite *MockTestSuite) TestPDNSZones() {
-//        	// There is literally nothing here to test, it's just a shim around the api zones call that catches errors.
-//
-//        	client := (*pgo.APIClient)(&mockApiClient{})
-//        	client.ZonesApi = (*pgo.ZonesApiService)(&ZonesApiSuccess{})
-//        	provider := PDNSProvider{
-//        		// Swagger API Client
-//        		client: client,
-//        	}
-//
-//        	z, err := provider.Zones()
-//        	assert.Nil(suite.T(), err)
-//        	assert.Equal(suite.T(), z, []pgo.Zone{ZoneSimple})
-//
-//        }
-//        func (suite *MockTestSuite) TestPDNSRecords() {
-//        }
-//        func (suite *MockTestSuite) TestPDNSApplyChanges() {
-//        }
-//        func (suite *MockTestSuite) TestPDNSmutateRecords() {
-//        }
-//        func TestPDNSUnitTestSuite(t *testing.T) {
-//        	suite.Run(t, new(MockTestSuite))
-//        }
