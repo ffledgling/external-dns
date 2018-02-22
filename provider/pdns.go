@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
+	"sort"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -150,10 +152,10 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 	zoneNameStructMap := map[string]pgo.Zone{}
 
 	zones, err := p.Zones()
-
 	if err != nil {
 		return nil, err
 	}
+
 	// Identify zones we control
 	for _, z := range zones {
 		mastermap[z.Name] = make(map[string]map[string][]*endpoint.Endpoint)
@@ -162,7 +164,7 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 
 	for _, ep := range endpoints {
 		// Identify which zone an endpoint belongs to
-		dnsname := ensureTrailingDot(ep.DNSName)
+		dnsname := ep.DNSName
 		zname := ""
 		for z := range mastermap {
 			if strings.HasSuffix(dnsname, z) && len(dnsname) > len(zname) {
@@ -170,7 +172,9 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 			}
 		}
 
-		// FIXME: We're assuming we have something in the mastermap[zname] here, what do we do if it's nil/empty? Reported by @fxpester on k8s.slack
+		if zname == "" {
+			return []pgo.Zone{}, errors.New(fmt.Sprintf("No matching zone found for %+v", ep))
+		}
 
 		// We can encounter a DNS name multiple times (different record types), we only create a map the first time
 		if _, ok := mastermap[zname][dnsname]; !ok {
@@ -190,8 +194,22 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 
 		zone := zoneNameStructMap[zname]
 		zone.Rrsets = []pgo.RrSet{}
-		for rrname := range mastermap[zname] {
-			for rtype := range mastermap[zname][rrname] {
+
+		// Sort for deterministic struct
+		rrnames := make([]string, 0, len(mastermap[zname]))
+		for k := range mastermap[zname] {
+			rrnames = append(rrnames, k)
+		}
+		sort.Strings(rrnames)
+
+		for _, rrname := range rrnames {
+			// Sort for deterministic struct
+			rtypes := make([]string, 0, len(mastermap[zname][rrname]))
+			for k := range mastermap[zname][rrname] {
+				rtypes = append(rtypes, k)
+			}
+			sort.Strings(rtypes)
+			for _, rtype := range rtypes {
 				rrset := pgo.RrSet{}
 				rrset.Name = rrname
 				rrset.Type_ = rtype
