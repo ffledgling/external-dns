@@ -2,7 +2,7 @@ package provider
 
 import (
 	//"context"
-	//"errors"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -379,6 +379,36 @@ func (c *PDNSAPIClientStubEmptyZones) PatchZone(zoneId string, zoneStruct pgo.Zo
 	return nil, nil
 }
 
+// API that returns a zone with no records
+type PDNSAPIClientStubPatchZoneFailure struct {
+    // Anonymous struct for composition
+    PDNSAPIClientStubEmptyZones
+}
+// Just overwrite the PatchZone method to introduce a failure
+func (c *PDNSAPIClientStubPatchZoneFailure) PatchZone(zoneId string, zoneStruct pgo.Zone) (*http.Response, error) {
+	return nil, errors.New("Generic PDNS Error")
+}
+
+// API that returns a zone with no records
+type PDNSAPIClientStubListZoneFailure struct {
+    // Anonymous struct for composition
+    PDNSAPIClientStubEmptyZones
+}
+// Just overwrite the ListZone method to introduce a failure
+func (c *PDNSAPIClientStubListZoneFailure) ListZone(zoneId string) (pgo.Zone, *http.Response, error) {
+	return pgo.Zone{}, nil, errors.New("Generic PDNS Error")
+
+}
+type PDNSAPIClientStubListZonesFailure struct {
+    // Anonymous struct for composition
+    PDNSAPIClientStubEmptyZones
+}
+// Just overwrite the ListZones method to introduce a failure
+func (c *PDNSAPIClientStubListZonesFailure) ListZones() ([]pgo.Zone, *http.Response, error) {
+	return []pgo.Zone{}, nil, errors.New("Generic PDNS Error")
+}
+
+
 type NewPDNSProviderTestSuite struct {
 	suite.Suite
 }
@@ -439,6 +469,20 @@ func (suite *NewPDNSProviderTestSuite) TestPDNSRecords() {
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), endpointsMixedRecords, eps)
 
+	// Test failures are handled correctly
+	// Create a new provider to run tests against
+	p = &PDNSProvider{
+		client: &PDNSAPIClientStubListZoneFailure{},
+	}
+	eps, err = p.Records()
+	assert.NotNil(suite.T(), err)
+
+	p = &PDNSProvider{
+		client: &PDNSAPIClientStubListZonesFailure{},
+	}
+	eps, err = p.Records()
+	assert.NotNil(suite.T(), err)
+
 }
 
 func (suite *NewPDNSProviderTestSuite) TestConvertEndpointsToZones() {
@@ -471,6 +515,37 @@ func (suite *NewPDNSProviderTestSuite) TestConvertEndpointsToZones() {
 
 }
 
+func (suite *NewPDNSProviderTestSuite) TestmutateRecords() {
+	// Function definition: mutateRecords(endpoints []*endpoint.Endpoint, changetype pdnsChangeType) error
+
+	// Create a new provider to run tests against
+	c := &PDNSAPIClientStubEmptyZones{}
+	p := &PDNSProvider{
+		client: c,
+	}
+
+	// Check inserting endpoints from a single zone
+	err := p.mutateRecords(endpointsSimpleRecord, pdnsChangeType("PATCH"))
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), []pgo.Zone{ZoneEmptyToSimplePatch}, c.patchedZones)
+
+	// Reset the "patchedZones"
+	c.patchedZones = []pgo.Zone{}
+
+	// Check deleting endpoints from a single zone
+	err = p.mutateRecords(endpointsSimpleRecord, pdnsChangeType("DELETE"))
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), []pgo.Zone{ZoneEmptyToSimpleDelete}, c.patchedZones)
+
+	// Check we fail correctly when patching fails for whatever reason
+	p = &PDNSProvider{
+		client: &PDNSAPIClientStubPatchZoneFailure{},
+	}
+	// Check inserting endpoints from a single zone
+	err = p.mutateRecords(endpointsSimpleRecord, pdnsChangeType("PATCH"))
+	assert.NotNil(suite.T(), err)
+
+}
 func TestNewPDNSProviderTestSuite(t *testing.T) {
 	suite.Run(t, new(NewPDNSProviderTestSuite))
 }
