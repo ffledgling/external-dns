@@ -36,6 +36,10 @@ const (
 // Function for debug printing
 func stringifyHTTPResponseBody(r *http.Response) (body string) {
 
+	if r == nil {
+	    return ""
+	}
+
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(r.Body)
 	body = buf.String()
@@ -275,7 +279,7 @@ func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 	for _, zone := range zones {
 		z, _, err := p.client.ListZone(zone.Id)
 		if err != nil {
-			log.Warnf("Unable to fetch data for %v. %v", zone.Id, err)
+			log.Warnf("Unable to fetch Records")
 			return nil, err
 		}
 
