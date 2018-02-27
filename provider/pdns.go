@@ -58,15 +58,25 @@ type PDNSAPIClient struct {
 
 func (c *PDNSAPIClient) ListZones() ([]pgo.Zone, *http.Response, error) {
 	zones, resp, err := c.client.ZonesApi.ListZones(c.authCtx, defaultServerID)
+	if err != nil {
+		log.Warnf("Unable to fetch zones. %v", err)
+	}
 	return zones, resp, err
 }
 
 func (c *PDNSAPIClient) ListZone(zoneId string) (pgo.Zone, *http.Response, error) {
 	zones, resp, err := c.client.ZonesApi.ListZone(c.authCtx, defaultServerID, zoneId)
+	if err != nil {
+		log.Warnf("Unable to list zone %s. %v", zoneId, err)
+	}
 	return zones, resp, err
 }
+
 func (c *PDNSAPIClient) PatchZone(zoneId string, zoneStruct pgo.Zone) (*http.Response, error) {
 	resp, err := c.client.ZonesApi.PatchZone(c.authCtx, defaultServerID, zoneId, zoneStruct)
+	if err != nil {
+		log.Warnf("Unable to patch zone %s. %v", zoneStruct.Name, err)
+	}
 	return resp, err
 }
 
@@ -126,18 +136,6 @@ func (p *PDNSProvider) convertRRSetToEndpoints(rr pgo.RrSet) (endpoints []*endpo
 	return endpoints, nil
 }
 
-// Zones returns the list of all zones controlled by the pdns server as a list of pdns Zone structs
-func (p *PDNSProvider) Zones() (zones []pgo.Zone, _ error) {
-	zones, _, err := p.client.ListZones()
-	if err != nil {
-		log.Warnf("Unable to fetch zones. %v", err)
-		return nil, err
-	}
-
-	return zones, nil
-
-}
-
 // convertEndpointsToZones marshals endpoints into pdns compatible Zone structs
 func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, changetype pdnsChangeType) (zonelist []pgo.Zone, _ error) {
 	/* eg of mastermap
@@ -151,7 +149,7 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 	mastermap := make(map[string]map[string]map[string][]*endpoint.Endpoint)
 	zoneNameStructMap := map[string]pgo.Zone{}
 
-	zones, err := p.Zones()
+	zones, _, err := p.client.ListZones()
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +267,7 @@ func (p *PDNSProvider) mutateRecords(endpoints []*endpoint.Endpoint, changetype 
 // Records returns all DNS records controlled by the configured PDNS server (for all zones)
 func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 
-	zones, err := p.Zones()
+	zones, _, err := p.client.ListZones()
 	if err != nil {
 		return nil, err
 	}
@@ -298,10 +296,10 @@ func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 // by sending the correct HTTP PATCH requests to a matching zone
 func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 
+	// Create
 	for _, change := range changes.Create {
 		log.Debugf("CREATE: %+v", change)
 	}
-
 	// We only attempt to mutate records if there are any to mutate.  A
 	// call to mutate records with an empty list of endpoints is still a
 	// valid call and a no-op, but we might as well not make the call to
@@ -311,6 +309,7 @@ func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 		p.mutateRecords(changes.Create, pdnsReplace)
 	}
 
+	// Update
 	for _, change := range changes.UpdateOld {
 		// Since PDNS "Patches", we don't need to specify the "old"
 		// record. The Update New change type will automatically take
@@ -326,6 +325,7 @@ func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 		p.mutateRecords(changes.UpdateNew, pdnsReplace)
 	}
 
+	// Delete
 	for _, change := range changes.Delete {
 		log.Debugf("DELETE: %+v", change)
 	}
