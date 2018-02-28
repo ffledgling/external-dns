@@ -136,9 +136,9 @@ var (
 	//
 	ZoneEmpty = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "example.com",
+		Id: "example.com.",
 		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "example.com",
+		Name: "example.com.",
 		// Set to “Zone”
 		Type_: "Zone",
 		// API endpoint for this zone
@@ -151,9 +151,9 @@ var (
 
 	ZoneEmpty2 = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "mock.test",
+		Id: "mock.test.",
 		// Name of the zone (e.g. “mock.test.”) MUST have a trailing dot
-		Name: "mock.test",
+		Name: "mock.test.",
 		// Set to “Zone”
 		Type_: "Zone",
 		// API endpoint for this zone
@@ -166,9 +166,9 @@ var (
 
 	ZoneSimple = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "example.com",
+		Id: "example.com.",
 		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "example.com",
+		Name: "example.com.",
 		// Set to “Zone”
 		Type_: "Zone",
 		// API endpoint for this zone
@@ -181,9 +181,9 @@ var (
 
 	ZonePartial = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "example.com",
+		Id: "example.com.",
 		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "example.com",
+		Name: "example.com.",
 		// Set to “Zone”
 		Type_: "Zone",
 		// API endpoint for this zone
@@ -196,9 +196,9 @@ var (
 
 	ZoneMixed = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "example.com",
+		Id: "example.com.",
 		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "example.com",
+		Name: "example.com.",
 		// Set to “Zone”
 		Type_: "Zone",
 		// API endpoint for this zone
@@ -211,9 +211,9 @@ var (
 
 	ZoneEmptyToSimplePatch = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "example.com",
+		Id: "example.com.",
 		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "example.com",
+		Name: "example.com.",
 		// Set to “Zone”
 		Type_: "Zone",
 		// API endpoint for this zone
@@ -254,9 +254,9 @@ var (
 	}
 	ZoneEmptyToSimplePatch2 = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "mock.test",
+		Id: "mock.test.",
 		// Name of the zone (e.g. “mock.test.”) MUST have a trailing dot
-		Name: "mock.test",
+		Name: "mock.test.",
 		// Set to “Zone”
 		Type_: "Zone",
 		// API endpoint for this zone
@@ -297,9 +297,9 @@ var (
 	}
 	ZoneEmptyToSimpleDelete = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "example.com",
+		Id: "example.com.",
 		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "example.com",
+		Name: "example.com.",
 		// Set to “Zone”
 		Type_: "Zone",
 		// API endpoint for this zone
