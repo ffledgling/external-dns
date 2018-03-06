@@ -118,22 +118,6 @@ var (
 	}
 
 	//
-	//        	// This struct contains a lot more fields, but we only set the ones we care about
-	//        	ZoneExampleDotCom = pgo.Zone{
-	//        		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-	//        		Id: "example.com",
-	//        		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-	//        		Name: "example.com",
-	//        		// Set to “Zone”
-	//        		Type_: "Zone",
-	//        		// API endpoint for this zone
-	//        		Url: "/api/v1/servers/localhost/zones/example.com.",
-	//        		// Zone kind, one of “Native”, “Master”, “Slave”
-	//        		Kind: "Native",
-	//        		// RRSets in this zone
-	//        		//Rrsets []RrSet `json:"rrsets,omitempty"`
-	//        	}
-	//
 	ZoneEmpty = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
 		Id: "example.com.",
@@ -223,7 +207,7 @@ var (
 		// RRSets in this zone
 		Rrsets: []pgo.RrSet{
 			pgo.RrSet{
-				Name:       "example.com",
+				Name:       "example.com.",
 				Type_:      "A",
 				Ttl:        300,
 				Changetype: "PATCH",
@@ -237,7 +221,7 @@ var (
 				Comments: []pgo.Comment(nil),
 			},
 			pgo.RrSet{
-				Name:       "example.com",
+				Name:       "example.com.",
 				Type_:      "TXT",
 				Ttl:        300,
 				Changetype: "PATCH",
@@ -266,7 +250,7 @@ var (
 		// RRSets in this zone
 		Rrsets: []pgo.RrSet{
 			pgo.RrSet{
-				Name:       "mock.test",
+				Name:       "mock.test.",
 				Type_:      "A",
 				Ttl:        300,
 				Changetype: "PATCH",
@@ -280,7 +264,7 @@ var (
 				Comments: []pgo.Comment(nil),
 			},
 			pgo.RrSet{
-				Name:       "mock.test",
+				Name:       "mock.test.",
 				Type_:      "TXT",
 				Ttl:        300,
 				Changetype: "PATCH",
@@ -309,7 +293,7 @@ var (
 		// RRSets in this zone
 		Rrsets: []pgo.RrSet{
 			pgo.RrSet{
-				Name:       "example.com",
+				Name:       "example.com.",
 				Type_:      "A",
 				Ttl:        300,
 				Changetype: "DELETE",
@@ -323,7 +307,7 @@ var (
 				Comments: []pgo.Comment(nil),
 			},
 			pgo.RrSet{
-				Name:       "example.com",
+				Name:       "example.com.",
 				Type_:      "TXT",
 				Ttl:        300,
 				Changetype: "DELETE",
@@ -381,9 +365,10 @@ func (c *PDNSAPIClientStubEmptyZones) PatchZone(zoneId string, zoneStruct pgo.Zo
 
 // API that returns a zone with no records
 type PDNSAPIClientStubPatchZoneFailure struct {
-    // Anonymous struct for composition
-    PDNSAPIClientStubEmptyZones
+	// Anonymous struct for composition
+	PDNSAPIClientStubEmptyZones
 }
+
 // Just overwrite the PatchZone method to introduce a failure
 func (c *PDNSAPIClientStubPatchZoneFailure) PatchZone(zoneId string, zoneStruct pgo.Zone) (*http.Response, error) {
 	return nil, errors.New("Generic PDNS Error")
@@ -391,23 +376,25 @@ func (c *PDNSAPIClientStubPatchZoneFailure) PatchZone(zoneId string, zoneStruct 
 
 // API that returns a zone with no records
 type PDNSAPIClientStubListZoneFailure struct {
-    // Anonymous struct for composition
-    PDNSAPIClientStubEmptyZones
+	// Anonymous struct for composition
+	PDNSAPIClientStubEmptyZones
 }
+
 // Just overwrite the ListZone method to introduce a failure
 func (c *PDNSAPIClientStubListZoneFailure) ListZone(zoneId string) (pgo.Zone, *http.Response, error) {
 	return pgo.Zone{}, nil, errors.New("Generic PDNS Error")
 
 }
+
 type PDNSAPIClientStubListZonesFailure struct {
-    // Anonymous struct for composition
-    PDNSAPIClientStubEmptyZones
+	// Anonymous struct for composition
+	PDNSAPIClientStubEmptyZones
 }
+
 // Just overwrite the ListZones method to introduce a failure
 func (c *PDNSAPIClientStubListZonesFailure) ListZones() ([]pgo.Zone, *http.Response, error) {
 	return []pgo.Zone{}, nil, errors.New("Generic PDNS Error")
 }
-
 
 type NewPDNSProviderTestSuite struct {
 	suite.Suite
