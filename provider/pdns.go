@@ -37,7 +37,7 @@ const (
 func stringifyHTTPResponseBody(r *http.Response) (body string) {
 
 	if r == nil {
-	    return ""
+		return ""
 	}
 
 	buf := new(bytes.Buffer)
@@ -166,7 +166,7 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 
 	for _, ep := range endpoints {
 		// Identify which zone an endpoint belongs to
-		dnsname := ep.DNSName
+		dnsname := ensureTrailingDot(ep.DNSName)
 		zname := ""
 		for z := range mastermap {
 			if strings.HasSuffix(dnsname, z) && len(dnsname) > len(zname) {
