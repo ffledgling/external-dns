@@ -472,7 +472,7 @@ func (suite *NewPDNSProviderTestSuite) TestPDNSRecords() {
 
 }
 
-func (suite *NewPDNSProviderTestSuite) TestConvertEndpointsToZones() {
+func (suite *NewPDNSProviderTestSuite) TestPDNSConvertEndpointsToZones() {
 	// Function definition: ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, changetype pdnsChangeType) (zonelist []pgo.Zone, _ error)
 
 	// Create a new provider to run tests against
@@ -502,7 +502,7 @@ func (suite *NewPDNSProviderTestSuite) TestConvertEndpointsToZones() {
 
 }
 
-func (suite *NewPDNSProviderTestSuite) TestmutateRecords() {
+func (suite *NewPDNSProviderTestSuite) TestPDNSmutateRecords() {
 	// Function definition: mutateRecords(endpoints []*endpoint.Endpoint, changetype pdnsChangeType) error
 
 	// Create a new provider to run tests against
