@@ -150,7 +150,13 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 		}
 	    }
 	*/
-	mastermap := make(map[string]map[string]map[string][]*endpoint.Endpoint)
+
+	type irecords []*endpoint.Endpoint
+	type irecordset map[string]irecords
+	type izone map[string]irecordset
+	type izoneset map[string]izone
+
+	mastermap := make(izoneset)
 	zoneNameStructMap := map[string]pgo.Zone{}
 
 	zones, _, err := p.client.ListZones()
@@ -160,7 +166,7 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 
 	// Identify zones we control
 	for _, z := range zones {
-		mastermap[z.Name] = make(map[string]map[string][]*endpoint.Endpoint)
+		mastermap[z.Name] = make(izone)
 		zoneNameStructMap[z.Name] = z
 	}
 
@@ -180,12 +186,12 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 
 		// We can encounter a DNS name multiple times (different record types), we only create a map the first time
 		if _, ok := mastermap[zname][dnsname]; !ok {
-			mastermap[zname][dnsname] = make(map[string][]*endpoint.Endpoint)
+			mastermap[zname][dnsname] = make(irecordset)
 		}
 
 		// We can get multiple targets for the same record type (eg. Multiple A records for a service)
 		if _, ok := mastermap[zname][dnsname][ep.RecordType]; !ok {
-			mastermap[zname][dnsname][ep.RecordType] = make([]*endpoint.Endpoint, 0)
+			mastermap[zname][dnsname][ep.RecordType] = make(irecords, 0)
 		}
 
 		mastermap[zname][dnsname][ep.RecordType] = append(mastermap[zname][dnsname][ep.RecordType], ep)
