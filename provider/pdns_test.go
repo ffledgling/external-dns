@@ -500,6 +500,8 @@ func (suite *NewPDNSProviderTestSuite) TestPDNSConvertEndpointsToZones() {
 	assert.NotNil(suite.T(), err)
 	assert.Equal(suite.T(), []pgo.Zone{}, zlist)
 
+	// TODO: Add test to check a record that matches multiple zones (one longer than other), is assigned to the right zone
+
 }
 
 func (suite *NewPDNSProviderTestSuite) TestPDNSmutateRecords() {

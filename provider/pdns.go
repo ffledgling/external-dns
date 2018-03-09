@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -151,97 +152,58 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 	    }
 	*/
 
-	type irecords []*endpoint.Endpoint
-	type irecordset map[string]irecords
-	type izone map[string]irecordset
-	type izoneset map[string]izone
-
-	mastermap := make(izoneset)
-	zoneNameStructMap := map[string]pgo.Zone{}
+	//zonelist := []pgo.Zone{}
 
 	zones, _, err := p.client.ListZones()
 	if err != nil {
 		return nil, err
 	}
 
-	// Identify zones we control
-	for _, z := range zones {
-		mastermap[z.Name] = make(izone)
-		zoneNameStructMap[z.Name] = z
-	}
+	// Sort the zone by length of the name in descending order, we use this
+	// property later to ensure we add a record to the longest matching zone
 
-	for _, ep := range endpoints {
-		// Identify which zone an endpoint belongs to
-		dnsname := ensureTrailingDot(ep.DNSName)
-		zname := ""
-		for z := range mastermap {
-			if strings.HasSuffix(dnsname, z) && len(dnsname) > len(zname) {
-				zname = z
-			}
-		}
+	sort.SliceStable(zones, func(i, j int) bool { return len(zones[i].Name) > len(zones[j].Name) })
 
-		if zname == "" {
-			return []pgo.Zone{}, errors.New(fmt.Sprintf("No matching zone found for %+v", ep))
-		}
+	fmt.Println(zones)
 
-		// We can encounter a DNS name multiple times (different record types), we only create a map the first time
-		if _, ok := mastermap[zname][dnsname]; !ok {
-			mastermap[zname][dnsname] = make(irecordset)
-		}
-
-		// We can get multiple targets for the same record type (eg. Multiple A records for a service)
-		if _, ok := mastermap[zname][dnsname][ep.RecordType]; !ok {
-			mastermap[zname][dnsname][ep.RecordType] = make(irecords, 0)
-		}
-
-		mastermap[zname][dnsname][ep.RecordType] = append(mastermap[zname][dnsname][ep.RecordType], ep)
-
-	}
-
-	for zname := range mastermap {
-
-		zone := zoneNameStructMap[zname]
+	// NOTE: Complexity of this loop is O(Zones*Endpoints).
+	// A possibly faster implementation would be a search of the reversed
+	// DNSName in a trie of Zone names, which should be O(Endpoints), but at this point it's not
+	// necessary.
+	for _, zone := range zones {
 		zone.Rrsets = []pgo.RrSet{}
-
-		// Sort for deterministic struct
-		rrnames := make([]string, 0, len(mastermap[zname]))
-		for k := range mastermap[zname] {
-			rrnames = append(rrnames, k)
-		}
-		sort.Strings(rrnames)
-
-		for _, rrname := range rrnames {
-			// Sort for deterministic struct
-			rtypes := make([]string, 0, len(mastermap[zname][rrname]))
-			for k := range mastermap[zname][rrname] {
-				rtypes = append(rtypes, k)
-			}
-			sort.Strings(rtypes)
-			for _, rtype := range rtypes {
-				rrset := pgo.RrSet{}
-				rrset.Name = rrname
-				rrset.Type_ = rtype
-				rrset.Changetype = string(changetype)
-				rttl := mastermap[zname][rrname][rtype][0].RecordTTL
-				if int64(rttl) > int64(math.MaxInt32) {
-					return nil, errors.New("Value of record TTL overflows, limited to int32")
+		for i := 0; i < len(endpoints); i++ {
+			ep := endpoints[0]
+			dnsname := ensureTrailingDot(ep.DNSName)
+			if strings.HasSuffix(dnsname, zone.Name) {
+				rrset := pgo.RrSet{
+					Name:  dnsname,
+					Type_: ep.RecordType,
+					// The assumption here is that there will only ever be one target per (ep.DNSName, ep.RecordType)
+					Records: []pgo.Record{pgo.Record{Content: ep.Target}},
 				}
-				rrset.Ttl = int32(rttl)
-				records := []pgo.Record{}
-				for _, e := range mastermap[zname][rrname][rtype] {
-					records = append(records, pgo.Record{Content: e.Target})
-
+				// DELETEs explicitly forbid a TTL, therefore only UPDATEs need the TTL
+				if changetype == pdnsReplace {
+					if int64(ep.RecordTTL) > int64(math.MaxInt32) {
+						return nil, errors.New("Value of record TTL overflows, limited to int32")
+					}
+					if ep.RecordTTL == 0 {
+						// No TTL was sepecified for the record, we use the default
+						rrset.Ttl = int32(defaultTTL)
+					} else {
+						rrset.Ttl = int32(ep.RecordTTL)
+					}
 				}
-				rrset.Records = records
+
 				zone.Rrsets = append(zone.Rrsets, rrset)
+
+				// "pop" endpoint if it's matched
+				endpoints = append(endpoints[0:i], endpoints[i+1:len(endpoints)]...)
 			}
 
 		}
 
-		// Skip the empty zones (likely ones we don't control)
-		if len(zone.Rrsets) > 0 {
-			zonelist = append(zonelist, zone)
-		}
+		zonelist = append(zonelist, zone)
 
 	}
 
@@ -306,6 +268,8 @@ func (p *PDNSProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 // by sending the correct HTTP PATCH requests to a matching zone
 func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 
+	startTime := time.Now()
+
 	// Create
 	for _, change := range changes.Create {
 		log.Debugf("CREATE: %+v", change)
@@ -342,5 +306,7 @@ func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 	if len(changes.Delete) > 0 {
 		p.mutateRecords(changes.Delete, pdnsDelete)
 	}
+
+	log.Debugf("Changes pushed out to PowerDNS in %s\n", time.Since(startTime))
 	return nil
 }
