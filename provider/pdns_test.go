@@ -1,16 +1,14 @@
 package provider
 
 import (
-	//"context"
 	"errors"
-	"fmt"
+	//"fmt"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	//"github.com/stretchr/testify/require"
 
 	pgo "github.com/ffledgling/pdns-go"
 	"github.com/kubernetes-incubator/external-dns/endpoint"
@@ -185,21 +183,6 @@ var (
 		Rrsets: []pgo.RrSet{},
 	}
 
-	ZoneSimple = pgo.Zone{
-		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "example.com.",
-		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "example.com.",
-		// Set to “Zone”
-		Type_: "Zone",
-		// API endpoint for this zone
-		Url: "/api/v1/servers/localhost/zones/example.com.",
-		// Zone kind, one of “Native”, “Master”, “Slave”
-		Kind: "Native",
-		// RRSets in this zone
-		Rrsets: []pgo.RrSet{RRSetSimpleARecord, RRSetSimpleTXTRecord},
-	}
-
 	ZoneMixed = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
 		Id: "example.com.",
@@ -258,6 +241,7 @@ var (
 			},
 		},
 	}
+
 	ZoneEmptyToLongPatch = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
 		Id: "long.domainname.example.com.",
@@ -301,6 +285,7 @@ var (
 			},
 		},
 	}
+
 	ZoneEmptyToSimplePatch2 = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
 		Id: "mock.test.",
@@ -344,6 +329,7 @@ var (
 			},
 		},
 	}
+
 	ZoneEmptyToSimpleDelete = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
 		Id: "example.com.",
@@ -580,8 +566,6 @@ func (suite *NewPDNSProviderTestSuite) TestPDNSmutateRecords() {
 	p := &PDNSProvider{
 		client: c,
 	}
-
-	fmt.Println("ANHAD (before entry - mutate):", endpointsSimpleRecord)
 
 	// Check inserting endpoints from a single zone
 	err := p.mutateRecords(endpointsSimpleRecord, pdnsChangeType("REPLACE"))
