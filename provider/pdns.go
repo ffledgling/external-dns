@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	//"fmt"
 	"math"
 	"net/http"
 	"sort"
@@ -156,8 +156,6 @@ func (p *PDNSProvider) ConvertEndpointsToZones(eps []*endpoint.Endpoint, changet
 	endpoints := make([]*endpoint.Endpoint, len(eps))
 	copy(endpoints, eps)
 
-	fmt.Println("ANHAD(entry):", endpoints)
-
 	// Sort the endpoints array so we have deterministic inserts
 	sort.SliceStable(endpoints,
 		func(i, j int) bool {
@@ -187,7 +185,6 @@ func (p *PDNSProvider) ConvertEndpointsToZones(eps []*endpoint.Endpoint, changet
 	for _, zone := range zones {
 		zone.Rrsets = []pgo.RrSet{}
 		for i := 0; i < len(endpoints); {
-			fmt.Println("ANHAD (inner loop - pre):", endpoints)
 			ep := endpoints[0]
 			dnsname := ensureTrailingDot(ep.DNSName)
 			if strings.HasSuffix(dnsname, zone.Name) {
@@ -223,7 +220,6 @@ func (p *PDNSProvider) ConvertEndpointsToZones(eps []*endpoint.Endpoint, changet
 				i++
 			}
 
-			fmt.Println("ANHAD (inner loop - post):", endpoints)
 		}
 
 		if len(zone.Rrsets) > 0 {
@@ -239,8 +235,6 @@ func (p *PDNSProvider) ConvertEndpointsToZones(eps []*endpoint.Endpoint, changet
 	}
 
 	log.Debugf("Zone List generated from Endpoints: %+v", zonelist)
-
-	fmt.Println("ANHAD (exit):", endpoints)
 
 	return zonelist, nil
 }
