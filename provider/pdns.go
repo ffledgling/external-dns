@@ -28,9 +28,13 @@ const (
 	defaultServerID = "localhost"
 	defaultTTL      = 300
 
-	// This is effectively an enum for "pgo.RrSet.changetype"
+	// PdnsDelete and PdnsReplace are effectively an enum for "pgo.RrSet.changetype"
 	// TODO: Can we somehow get this from the pgo swagger client library itself?
-	PdnsDelete  pdnsChangeType = "DELETE"
+
+	// PdnsDelete : PowerDNS changetype used for deleting rrsets
+	// ref: https://doc.powerdns.com/authoritative/http-api/zone.html#rrset (see "changetype")
+	PdnsDelete pdnsChangeType = "DELETE"
+	// PdnsReplace : PowerDNS changetype for creating, updating and patching rrsets
 	PdnsReplace pdnsChangeType = "REPLACE"
 )
 
@@ -48,19 +52,23 @@ func stringifyHTTPResponseBody(r *http.Response) (body string) {
 
 }
 
-// All of this interface and inherited client struct requires
+// PDNSAPIProvider : Interface used and extended by the PDNSAPIClient struct as
+// well as mock APIClients used in testing
 type PDNSAPIProvider interface {
 	ListZones() ([]pgo.Zone, *http.Response, error)
-	ListZone(zoneId string) (pgo.Zone, *http.Response, error)
-	PatchZone(zoneId string, zoneStruct pgo.Zone) (*http.Response, error)
+	ListZone(zoneID string) (pgo.Zone, *http.Response, error)
+	PatchZone(zoneID string, zoneStruct pgo.Zone) (*http.Response, error)
 }
 
+// PDNSAPIClient : Struct that encapsulates all the PowerDNS specific implementation details
 type PDNSAPIClient struct {
 	dryRun  bool
 	authCtx context.Context
 	client  *pgo.APIClient
 }
 
+// ListZones : Method returns all enabled zones from PowerDNS
+// ref: https://doc.powerdns.com/authoritative/http-api/zone.html#get--servers-server_id-zones
 func (c *PDNSAPIClient) ListZones() ([]pgo.Zone, *http.Response, error) {
 	zones, resp, err := c.client.ZonesApi.ListZones(c.authCtx, defaultServerID)
 	if err != nil {
@@ -69,16 +77,20 @@ func (c *PDNSAPIClient) ListZones() ([]pgo.Zone, *http.Response, error) {
 	return zones, resp, err
 }
 
-func (c *PDNSAPIClient) ListZone(zoneId string) (pgo.Zone, *http.Response, error) {
-	zones, resp, err := c.client.ZonesApi.ListZone(c.authCtx, defaultServerID, zoneId)
+// ListZone : Method returns the details of a specific zone from PowerDNS
+// ref: https://doc.powerdns.com/authoritative/http-api/zone.html#get--servers-server_id-zones-zone_id
+func (c *PDNSAPIClient) ListZone(zoneID string) (pgo.Zone, *http.Response, error) {
+	zones, resp, err := c.client.ZonesApi.ListZone(c.authCtx, defaultServerID, zoneID)
 	if err != nil {
-		log.Warnf("Unable to list zone %s. %v", zoneId, err)
+		log.Warnf("Unable to list zone %s. %v", zoneID, err)
 	}
 	return zones, resp, err
 }
 
-func (c *PDNSAPIClient) PatchZone(zoneId string, zoneStruct pgo.Zone) (*http.Response, error) {
-	resp, err := c.client.ZonesApi.PatchZone(c.authCtx, defaultServerID, zoneId, zoneStruct)
+// PatchZone : Method used to update the contents of a particular zone from PowerDNS
+// ref: https://doc.powerdns.com/authoritative/http-api/zone.html#patch--servers-server_id-zones-zone_id
+func (c *PDNSAPIClient) PatchZone(zoneID string, zoneStruct pgo.Zone) (*http.Response, error) {
+	resp, err := c.client.ZonesApi.PatchZone(c.authCtx, defaultServerID, zoneID, zoneStruct)
 	if err != nil {
 		log.Warnf("Unable to patch zone %s. %v", zoneStruct.Name, err)
 	}
@@ -101,12 +113,12 @@ func NewPDNSProvider(server string, apikey string, domainFilter DomainFilter, dr
 
 	// The default for when no --domain-filter is passed is [""], instead of [], so we check accordingly.
 	if len(domainFilter.filters) != 1 && domainFilter.filters[0] != "" {
-		return nil, errors.New("PDNS Provider does not support domain filter.")
+		return nil, errors.New("PDNS Provider does not support domain filter")
 	}
 	// We do not support dry running, exit safely instead of surprising the user
 	// TODO: Add Dry Run support
 	if dryRun {
-		return nil, errors.New("PDNS Provider does not currently support dry-run.")
+		return nil, errors.New("PDNS Provider does not currently support dry-run")
 	}
 
 	if server == "localhost" {
@@ -141,7 +153,7 @@ func (p *PDNSProvider) convertRRSetToEndpoints(rr pgo.RrSet) (endpoints []*endpo
 	return endpoints, nil
 }
 
-// convertEndpointsToZones marshals endpoints into pdns compatible Zone structs
+// ConvertEndpointsToZones marshals endpoints into pdns compatible Zone structs
 func (p *PDNSProvider) ConvertEndpointsToZones(eps []*endpoint.Endpoint, changetype pdnsChangeType) (zonelist []pgo.Zone, _ error) {
 	/* eg of mastermap
 	    { "example.com":
@@ -162,10 +174,8 @@ func (p *PDNSProvider) ConvertEndpointsToZones(eps []*endpoint.Endpoint, changet
 			// We only care about sorting endpoints with the same dnsname
 			if endpoints[i].DNSName == endpoints[j].DNSName {
 				return endpoints[i].RecordType < endpoints[j].RecordType
-			} else {
-				return endpoints[i].DNSName < endpoints[j].DNSName
 			}
-			return false
+			return endpoints[i].DNSName < endpoints[j].DNSName
 		})
 
 	zones, _, err := p.client.ListZones()
@@ -218,7 +228,7 @@ func (p *PDNSProvider) ConvertEndpointsToZones(eps []*endpoint.Endpoint, changet
 				zone.Rrsets = append(zone.Rrsets, rrset)
 
 				// "pop" endpoint if it's matched
-				endpoints = append(endpoints[0:i], endpoints[i+1:len(endpoints)]...)
+				endpoints = append(endpoints[0:i], endpoints[i+1:]...)
 			} else {
 				// If we didn't pop anything, we move to the next item in the list
 				i++

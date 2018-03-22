@@ -23,7 +23,7 @@ var (
 		Type_: "A",
 		Ttl:   300,
 		Records: []pgo.Record{
-			pgo.Record{Content: "8.8.8.8", Disabled: false, SetPtr: false},
+			{Content: "8.8.8.8", Disabled: false, SetPtr: false},
 		},
 	}
 	RRSetSimpleTXTRecord = pgo.RrSet{
@@ -31,7 +31,7 @@ var (
 		Type_: "TXT",
 		Ttl:   300,
 		Records: []pgo.Record{
-			pgo.Record{Content: "\"heritage=external-dns,external-dns/owner=tower-pdns\"", Disabled: false, SetPtr: false},
+			{Content: "\"heritage=external-dns,external-dns/owner=tower-pdns\"", Disabled: false, SetPtr: false},
 		},
 	}
 	RRSetLongARecord = pgo.RrSet{
@@ -39,7 +39,7 @@ var (
 		Type_: "A",
 		Ttl:   300,
 		Records: []pgo.Record{
-			pgo.Record{Content: "8.8.8.8", Disabled: false, SetPtr: false},
+			{Content: "8.8.8.8", Disabled: false, SetPtr: false},
 		},
 	}
 	RRSetLongTXTRecord = pgo.RrSet{
@@ -47,7 +47,7 @@ var (
 		Type_: "TXT",
 		Ttl:   300,
 		Records: []pgo.Record{
-			pgo.Record{Content: "\"heritage=external-dns,external-dns/owner=tower-pdns\"", Disabled: false, SetPtr: false},
+			{Content: "\"heritage=external-dns,external-dns/owner=tower-pdns\"", Disabled: false, SetPtr: false},
 		},
 	}
 	// RRSet with one record disabled
@@ -56,8 +56,8 @@ var (
 		Type_: "A",
 		Ttl:   300,
 		Records: []pgo.Record{
-			pgo.Record{Content: "8.8.8.8", Disabled: false, SetPtr: false},
-			pgo.Record{Content: "8.8.4.4", Disabled: true, SetPtr: false},
+			{Content: "8.8.8.8", Disabled: false, SetPtr: false},
+			{Content: "8.8.4.4", Disabled: true, SetPtr: false},
 		},
 	}
 
@@ -66,7 +66,7 @@ var (
 		Type_: "CNAME",
 		Ttl:   300,
 		Records: []pgo.Record{
-			pgo.Record{Content: "example.by.any.other.name.com", Disabled: false, SetPtr: false},
+			{Content: "example.by.any.other.name.com", Disabled: false, SetPtr: false},
 		},
 	}
 	RRSetTXTRecord = pgo.RrSet{
@@ -74,7 +74,7 @@ var (
 		Type_: "TXT",
 		Ttl:   300,
 		Records: []pgo.Record{
-			pgo.Record{Content: "'would smell as sweet'", Disabled: false, SetPtr: false},
+			{Content: "'would smell as sweet'", Disabled: false, SetPtr: false},
 		},
 	}
 
@@ -84,9 +84,9 @@ var (
 		Type_: "A",
 		Ttl:   300,
 		Records: []pgo.Record{
-			pgo.Record{Content: "8.8.8.8", Disabled: false, SetPtr: false},
-			pgo.Record{Content: "8.8.4.4", Disabled: false, SetPtr: false},
-			pgo.Record{Content: "4.4.4.4", Disabled: false, SetPtr: false},
+			{Content: "8.8.8.8", Disabled: false, SetPtr: false},
+			{Content: "8.8.4.4", Disabled: false, SetPtr: false},
+			{Content: "4.4.4.4", Disabled: false, SetPtr: false},
 		},
 	}
 
@@ -178,13 +178,13 @@ var (
 		Url:   "/api/v1/servers/localhost/zones/example.com.",
 		Kind:  "Native",
 		Rrsets: []pgo.RrSet{
-			pgo.RrSet{
+			{
 				Name:       "example.com.",
 				Type_:      "A",
 				Ttl:        300,
 				Changetype: "REPLACE",
 				Records: []pgo.Record{
-					pgo.Record{
+					{
 						Content:  "8.8.8.8",
 						Disabled: false,
 						SetPtr:   false,
@@ -192,13 +192,13 @@ var (
 				},
 				Comments: []pgo.Comment(nil),
 			},
-			pgo.RrSet{
+			{
 				Name:       "example.com.",
 				Type_:      "TXT",
 				Ttl:        300,
 				Changetype: "REPLACE",
 				Records: []pgo.Record{
-					pgo.Record{
+					{
 						Content:  "\"heritage=external-dns,external-dns/owner=tower-pdns\"",
 						Disabled: false,
 						SetPtr:   false,
@@ -216,13 +216,13 @@ var (
 		Url:   "/api/v1/servers/localhost/zones/long.domainname.example.com.",
 		Kind:  "Native",
 		Rrsets: []pgo.RrSet{
-			pgo.RrSet{
+			{
 				Name:       "a.very.long.domainname.example.com.",
 				Type_:      "A",
 				Ttl:        300,
 				Changetype: "REPLACE",
 				Records: []pgo.Record{
-					pgo.Record{
+					{
 						Content:  "8.8.8.8",
 						Disabled: false,
 						SetPtr:   false,
@@ -230,13 +230,13 @@ var (
 				},
 				Comments: []pgo.Comment(nil),
 			},
-			pgo.RrSet{
+			{
 				Name:       "a.very.long.domainname.example.com.",
 				Type_:      "TXT",
 				Ttl:        300,
 				Changetype: "REPLACE",
 				Records: []pgo.Record{
-					pgo.Record{
+					{
 						Content:  "\"heritage=external-dns,external-dns/owner=tower-pdns\"",
 						Disabled: false,
 						SetPtr:   false,
@@ -254,13 +254,13 @@ var (
 		Url:   "/api/v1/servers/localhost/zones/mock.test.",
 		Kind:  "Native",
 		Rrsets: []pgo.RrSet{
-			pgo.RrSet{
+			{
 				Name:       "mock.test.",
 				Type_:      "A",
 				Ttl:        300,
 				Changetype: "REPLACE",
 				Records: []pgo.Record{
-					pgo.Record{
+					{
 						Content:  "9.9.9.9",
 						Disabled: false,
 						SetPtr:   false,
@@ -268,13 +268,13 @@ var (
 				},
 				Comments: []pgo.Comment(nil),
 			},
-			pgo.RrSet{
+			{
 				Name:       "mock.test.",
 				Type_:      "TXT",
 				Ttl:        300,
 				Changetype: "REPLACE",
 				Records: []pgo.Record{
-					pgo.Record{
+					{
 						Content:  "\"heritage=external-dns,external-dns/owner=tower-pdns\"",
 						Disabled: false,
 						SetPtr:   false,
@@ -292,12 +292,12 @@ var (
 		Url:   "/api/v1/servers/localhost/zones/example.com.",
 		Kind:  "Native",
 		Rrsets: []pgo.RrSet{
-			pgo.RrSet{
+			{
 				Name:       "example.com.",
 				Type_:      "A",
 				Changetype: "DELETE",
 				Records: []pgo.Record{
-					pgo.Record{
+					{
 						Content:  "8.8.8.8",
 						Disabled: false,
 						SetPtr:   false,
@@ -305,12 +305,12 @@ var (
 				},
 				Comments: []pgo.Comment(nil),
 			},
-			pgo.RrSet{
+			{
 				Name:       "example.com.",
 				Type_:      "TXT",
 				Changetype: "DELETE",
 				Records: []pgo.Record{
-					pgo.Record{
+					{
 						Content:  "\"heritage=external-dns,external-dns/owner=tower-pdns\"",
 						Disabled: false,
 						SetPtr:   false,
@@ -330,10 +330,10 @@ type PDNSAPIClientStub struct {
 func (c *PDNSAPIClientStub) ListZones() ([]pgo.Zone, *http.Response, error) {
 	return []pgo.Zone{ZoneMixed}, nil, nil
 }
-func (c *PDNSAPIClientStub) ListZone(zoneId string) (pgo.Zone, *http.Response, error) {
+func (c *PDNSAPIClientStub) ListZone(zoneID string) (pgo.Zone, *http.Response, error) {
 	return ZoneMixed, nil, nil
 }
-func (c *PDNSAPIClientStub) PatchZone(zoneId string, zoneStruct pgo.Zone) (*http.Response, error) {
+func (c *PDNSAPIClientStub) PatchZone(zoneID string, zoneStruct pgo.Zone) (*http.Response, error) {
 	return nil, nil
 }
 
@@ -347,20 +347,19 @@ type PDNSAPIClientStubEmptyZones struct {
 func (c *PDNSAPIClientStubEmptyZones) ListZones() ([]pgo.Zone, *http.Response, error) {
 	return []pgo.Zone{ZoneEmpty, ZoneEmptyLong, ZoneEmpty2}, nil, nil
 }
-func (c *PDNSAPIClientStubEmptyZones) ListZone(zoneId string) (pgo.Zone, *http.Response, error) {
+func (c *PDNSAPIClientStubEmptyZones) ListZone(zoneID string) (pgo.Zone, *http.Response, error) {
 
-	if strings.Contains(zoneId, "example.com") {
+	if strings.Contains(zoneID, "example.com") {
 		return ZoneEmpty, nil, nil
-	} else if strings.Contains(zoneId, "mock.test") {
+	} else if strings.Contains(zoneID, "mock.test") {
 		return ZoneEmpty2, nil, nil
-	} else if strings.Contains(zoneId, "long.domainname.example.com") {
+	} else if strings.Contains(zoneID, "long.domainname.example.com") {
 		return ZoneEmpty2, nil, nil
-	} else {
-		return pgo.Zone{}, nil, nil
 	}
+	return pgo.Zone{}, nil, nil
 
 }
-func (c *PDNSAPIClientStubEmptyZones) PatchZone(zoneId string, zoneStruct pgo.Zone) (*http.Response, error) {
+func (c *PDNSAPIClientStubEmptyZones) PatchZone(zoneID string, zoneStruct pgo.Zone) (*http.Response, error) {
 	c.patchedZones = append(c.patchedZones, zoneStruct)
 	return nil, nil
 }
@@ -373,7 +372,7 @@ type PDNSAPIClientStubPatchZoneFailure struct {
 }
 
 // Just overwrite the PatchZone method to introduce a failure
-func (c *PDNSAPIClientStubPatchZoneFailure) PatchZone(zoneId string, zoneStruct pgo.Zone) (*http.Response, error) {
+func (c *PDNSAPIClientStubPatchZoneFailure) PatchZone(zoneID string, zoneStruct pgo.Zone) (*http.Response, error) {
 	return nil, errors.New("Generic PDNS Error")
 }
 
@@ -385,7 +384,7 @@ type PDNSAPIClientStubListZoneFailure struct {
 }
 
 // Just overwrite the ListZone method to introduce a failure
-func (c *PDNSAPIClientStubListZoneFailure) ListZone(zoneId string) (pgo.Zone, *http.Response, error) {
+func (c *PDNSAPIClientStubListZoneFailure) ListZone(zoneID string) (pgo.Zone, *http.Response, error) {
 	return pgo.Zone{}, nil, errors.New("Generic PDNS Error")
 
 }
