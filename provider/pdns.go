@@ -191,10 +191,14 @@ func (p *PDNSProvider) ConvertEndpointsToZones(eps []*endpoint.Endpoint, changet
 				// The assumption here is that there will only ever be one target
 				// per (ep.DNSName, ep.RecordType) tuple, which holds true for
 				// external-dns v5.0.0-alpha onwards
+				records := []pgo.Record{}
+				for _, t := range ep.Targets {
+					records = append(records, pgo.Record{Content: t})
+				}
 				rrset := pgo.RrSet{
 					Name:       dnsname,
 					Type_:      ep.RecordType,
-					Records:    []pgo.Record{pgo.Record{Content: ep.Target}},
+					Records:    records,
 					Changetype: string(changetype),
 				}
 

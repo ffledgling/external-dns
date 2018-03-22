@@ -167,6 +167,12 @@
   revision = "09691a3b6378b740595c1002f40c34dd5f218a22"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/ffledgling/pdns-go"
+  packages = ["."]
+  revision = "524e7daccd99651cdb56426eb15b7d61f9597a5c"
+
+[[projects]]
   name = "github.com/ghodss/yaml"
   packages = ["."]
   revision = "73d445a93680fa1a78ae23a5839bad48f32ba1ee"
@@ -622,6 +628,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7af57b8d195abce34060c82b92243ddba947f5d882be8f9a08b1aa827a9061fa"
+  inputs-digest = "868d41f936420b74af7f11087b9cb6195560f33df48f0c6141c858a81a01b05d"
   solver-name = "gps-cdcl"
   solver-version = 1
