@@ -3,6 +3,7 @@ package provider
 import (
 	//"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -43,9 +44,30 @@ var (
 			pgo.Record{Content: "\"heritage=external-dns,external-dns/owner=tower-pdns\"", Disabled: false, SetPtr: false},
 		},
 	}
+	RRSetLongARecord = pgo.RrSet{
+		Name:  "a.very.long.domainname.example.com.",
+		Type_: "A",
+		Ttl:   300,
+		Records: []pgo.Record{
+			pgo.Record{Content: "8.8.8.8", Disabled: false, SetPtr: false},
+		},
+	}
+	RRSetLongTXTRecord = pgo.RrSet{
+		Name:  "a.very.long.domainname.example.com.",
+		Type_: "TXT",
+		Ttl:   300,
+		Records: []pgo.Record{
+			pgo.Record{Content: "\"heritage=external-dns,external-dns/owner=tower-pdns\"", Disabled: false, SetPtr: false},
+		},
+	}
 	endpointsSimpleRecord = []*endpoint.Endpoint{
 		endpoint.NewEndpointWithTTL("example.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
 		endpoint.NewEndpointWithTTL("example.com", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
+	}
+
+	endpointsLongRecord = []*endpoint.Endpoint{
+		endpoint.NewEndpointWithTTL("a.very.long.domainname.example.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
+		endpoint.NewEndpointWithTTL("a.very.long.domainname.example.com", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
 	}
 
 	endpointsNonexistantZone = []*endpoint.Endpoint{
@@ -133,6 +155,21 @@ var (
 		Rrsets: []pgo.RrSet{},
 	}
 
+	ZoneEmptyLong = pgo.Zone{
+		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
+		Id: "long.domainname.example.com.",
+		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
+		Name: "long.domainname.example.com.",
+		// Set to “Zone”
+		Type_: "Zone",
+		// API endpoint for this zone
+		Url: "/api/v1/servers/localhost/zones/long.domainname.example.com.",
+		// Zone kind, one of “Native”, “Master”, “Slave”
+		Kind: "Native",
+		// RRSets in this zone
+		Rrsets: []pgo.RrSet{},
+	}
+
 	ZoneEmpty2 = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
 		Id: "mock.test.",
@@ -149,21 +186,6 @@ var (
 	}
 
 	ZoneSimple = pgo.Zone{
-		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "example.com.",
-		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "example.com.",
-		// Set to “Zone”
-		Type_: "Zone",
-		// API endpoint for this zone
-		Url: "/api/v1/servers/localhost/zones/example.com.",
-		// Zone kind, one of “Native”, “Master”, “Slave”
-		Kind: "Native",
-		// RRSets in this zone
-		Rrsets: []pgo.RrSet{RRSetSimpleARecord, RRSetSimpleTXTRecord},
-	}
-
-	ZonePartial = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
 		Id: "example.com.",
 		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
@@ -210,7 +232,7 @@ var (
 				Name:       "example.com.",
 				Type_:      "A",
 				Ttl:        300,
-				Changetype: "PATCH",
+				Changetype: "REPLACE",
 				Records: []pgo.Record{
 					pgo.Record{
 						Content:  "8.8.8.8",
@@ -224,7 +246,50 @@ var (
 				Name:       "example.com.",
 				Type_:      "TXT",
 				Ttl:        300,
-				Changetype: "PATCH",
+				Changetype: "REPLACE",
+				Records: []pgo.Record{
+					pgo.Record{
+						Content:  "\"heritage=external-dns,external-dns/owner=tower-pdns\"",
+						Disabled: false,
+						SetPtr:   false,
+					},
+				},
+				Comments: []pgo.Comment(nil),
+			},
+		},
+	}
+	ZoneEmptyToLongPatch = pgo.Zone{
+		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
+		Id: "long.domainname.example.com.",
+		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
+		Name: "long.domainname.example.com.",
+		// Set to “Zone”
+		Type_: "Zone",
+		// API endpoint for this zone
+		Url: "/api/v1/servers/localhost/zones/long.domainname.example.com.",
+		// Zone kind, one of “Native”, “Master”, “Slave”
+		Kind: "Native",
+		// RRSets in this zone
+		Rrsets: []pgo.RrSet{
+			pgo.RrSet{
+				Name:       "a.very.long.domainname.example.com.",
+				Type_:      "A",
+				Ttl:        300,
+				Changetype: "REPLACE",
+				Records: []pgo.Record{
+					pgo.Record{
+						Content:  "8.8.8.8",
+						Disabled: false,
+						SetPtr:   false,
+					},
+				},
+				Comments: []pgo.Comment(nil),
+			},
+			pgo.RrSet{
+				Name:       "a.very.long.domainname.example.com.",
+				Type_:      "TXT",
+				Ttl:        300,
+				Changetype: "REPLACE",
 				Records: []pgo.Record{
 					pgo.Record{
 						Content:  "\"heritage=external-dns,external-dns/owner=tower-pdns\"",
@@ -253,7 +318,7 @@ var (
 				Name:       "mock.test.",
 				Type_:      "A",
 				Ttl:        300,
-				Changetype: "PATCH",
+				Changetype: "REPLACE",
 				Records: []pgo.Record{
 					pgo.Record{
 						Content:  "9.9.9.9",
@@ -267,7 +332,7 @@ var (
 				Name:       "mock.test.",
 				Type_:      "TXT",
 				Ttl:        300,
-				Changetype: "PATCH",
+				Changetype: "REPLACE",
 				Records: []pgo.Record{
 					pgo.Record{
 						Content:  "\"heritage=external-dns,external-dns/owner=tower-pdns\"",
@@ -295,7 +360,6 @@ var (
 			pgo.RrSet{
 				Name:       "example.com.",
 				Type_:      "A",
-				Ttl:        300,
 				Changetype: "DELETE",
 				Records: []pgo.Record{
 					pgo.Record{
@@ -309,7 +373,6 @@ var (
 			pgo.RrSet{
 				Name:       "example.com.",
 				Type_:      "TXT",
-				Ttl:        300,
 				Changetype: "DELETE",
 				Records: []pgo.Record{
 					pgo.Record{
@@ -345,13 +408,15 @@ type PDNSAPIClientStubEmptyZones struct {
 }
 
 func (c *PDNSAPIClientStubEmptyZones) ListZones() ([]pgo.Zone, *http.Response, error) {
-	return []pgo.Zone{ZoneEmpty, ZoneEmpty2}, nil, nil
+	return []pgo.Zone{ZoneEmpty, ZoneEmptyLong, ZoneEmpty2}, nil, nil
 }
 func (c *PDNSAPIClientStubEmptyZones) ListZone(zoneId string) (pgo.Zone, *http.Response, error) {
 
 	if strings.Contains(zoneId, "example.com") {
 		return ZoneEmpty, nil, nil
 	} else if strings.Contains(zoneId, "mock.test") {
+		return ZoneEmpty2, nil, nil
+	} else if strings.Contains(zoneId, "long.domainname.example.com") {
 		return ZoneEmpty2, nil, nil
 	} else {
 		return pgo.Zone{}, nil, nil
@@ -481,26 +546,29 @@ func (suite *NewPDNSProviderTestSuite) TestPDNSConvertEndpointsToZones() {
 	}
 
 	// Check inserting endpoints from a single zone
-	zlist, err := p.ConvertEndpointsToZones(endpointsSimpleRecord, pdnsChangeType("PATCH"))
+	zlist, err := p.ConvertEndpointsToZones(endpointsSimpleRecord, PdnsReplace)
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), []pgo.Zone{ZoneEmptyToSimplePatch}, zlist)
 
 	// Check deleting endpoints from a single zone
-	zlist, err = p.ConvertEndpointsToZones(endpointsSimpleRecord, pdnsChangeType("DELETE"))
+	zlist, err = p.ConvertEndpointsToZones(endpointsSimpleRecord, PdnsDelete)
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), []pgo.Zone{ZoneEmptyToSimpleDelete}, zlist)
 
 	// Check endpoints from multiple zones
-	zlist, err = p.ConvertEndpointsToZones(endpointsMultipleZones, pdnsChangeType("PATCH"))
+	zlist, err = p.ConvertEndpointsToZones(endpointsMultipleZones, PdnsReplace)
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), []pgo.Zone{ZoneEmptyToSimplePatch, ZoneEmptyToSimplePatch2}, zlist)
 
 	// Check endpoints from a zone that does not exist
-	zlist, err = p.ConvertEndpointsToZones(endpointsNonexistantZone, pdnsChangeType("PATCH"))
-	assert.NotNil(suite.T(), err)
+	zlist, err = p.ConvertEndpointsToZones(endpointsNonexistantZone, PdnsReplace)
+	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), []pgo.Zone{}, zlist)
 
 	// TODO: Add test to check a record that matches multiple zones (one longer than other), is assigned to the right zone
+	zlist, err = p.ConvertEndpointsToZones(endpointsLongRecord, PdnsReplace)
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), []pgo.Zone{ZoneEmptyToLongPatch}, zlist)
 
 }
 
@@ -513,8 +581,10 @@ func (suite *NewPDNSProviderTestSuite) TestPDNSmutateRecords() {
 		client: c,
 	}
 
+	fmt.Println("ANHAD (before entry - mutate):", endpointsSimpleRecord)
+
 	// Check inserting endpoints from a single zone
-	err := p.mutateRecords(endpointsSimpleRecord, pdnsChangeType("PATCH"))
+	err := p.mutateRecords(endpointsSimpleRecord, pdnsChangeType("REPLACE"))
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), []pgo.Zone{ZoneEmptyToSimplePatch}, c.patchedZones)
 
@@ -531,7 +601,7 @@ func (suite *NewPDNSProviderTestSuite) TestPDNSmutateRecords() {
 		client: &PDNSAPIClientStubPatchZoneFailure{},
 	}
 	// Check inserting endpoints from a single zone
-	err = p.mutateRecords(endpointsSimpleRecord, pdnsChangeType("PATCH"))
+	err = p.mutateRecords(endpointsSimpleRecord, pdnsChangeType("REPLACE"))
 	assert.NotNil(suite.T(), err)
 
 }

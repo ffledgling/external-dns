@@ -30,8 +30,8 @@ const (
 
 	// This is effectively an enum for "pgo.RrSet.changetype"
 	// TODO: Can we somehow get this from the pgo swagger client library itself?
-	pdnsDelete  pdnsChangeType = "DELETE"
-	pdnsReplace pdnsChangeType = "REPLACE"
+	PdnsDelete  pdnsChangeType = "DELETE"
+	PdnsReplace pdnsChangeType = "REPLACE"
 )
 
 // Function for debug printing
@@ -142,7 +142,7 @@ func (p *PDNSProvider) convertRRSetToEndpoints(rr pgo.RrSet) (endpoints []*endpo
 }
 
 // convertEndpointsToZones marshals endpoints into pdns compatible Zone structs
-func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, changetype pdnsChangeType) (zonelist []pgo.Zone, _ error) {
+func (p *PDNSProvider) ConvertEndpointsToZones(eps []*endpoint.Endpoint, changetype pdnsChangeType) (zonelist []pgo.Zone, _ error) {
 	/* eg of mastermap
 	    { "example.com":
 		{ "app.example.com":
@@ -152,7 +152,23 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 	    }
 	*/
 
-	//zonelist := []pgo.Zone{}
+	zonelist = []pgo.Zone{}
+	endpoints := make([]*endpoint.Endpoint, len(eps))
+	copy(endpoints, eps)
+
+	fmt.Println("ANHAD(entry):", endpoints)
+
+	// Sort the endpoints array so we have deterministic inserts
+	sort.SliceStable(endpoints,
+		func(i, j int) bool {
+			// We only care about sorting endpoints with the same dnsname
+			if endpoints[i].DNSName == endpoints[j].DNSName {
+				return endpoints[i].RecordType < endpoints[j].RecordType
+			} else {
+				return endpoints[i].DNSName < endpoints[j].DNSName
+			}
+			return false
+		})
 
 	zones, _, err := p.client.ListZones()
 	if err != nil {
@@ -164,26 +180,29 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 
 	sort.SliceStable(zones, func(i, j int) bool { return len(zones[i].Name) > len(zones[j].Name) })
 
-	fmt.Println(zones)
-
 	// NOTE: Complexity of this loop is O(Zones*Endpoints).
 	// A possibly faster implementation would be a search of the reversed
 	// DNSName in a trie of Zone names, which should be O(Endpoints), but at this point it's not
 	// necessary.
 	for _, zone := range zones {
 		zone.Rrsets = []pgo.RrSet{}
-		for i := 0; i < len(endpoints); i++ {
+		for i := 0; i < len(endpoints); {
+			fmt.Println("ANHAD (inner loop - pre):", endpoints)
 			ep := endpoints[0]
 			dnsname := ensureTrailingDot(ep.DNSName)
 			if strings.HasSuffix(dnsname, zone.Name) {
+				// The assumption here is that there will only ever be one target
+				// per (ep.DNSName, ep.RecordType) tuple, which holds true for
+				// external-dns v5.0.0-alpha onwards
 				rrset := pgo.RrSet{
-					Name:  dnsname,
-					Type_: ep.RecordType,
-					// The assumption here is that there will only ever be one target per (ep.DNSName, ep.RecordType)
-					Records: []pgo.Record{pgo.Record{Content: ep.Target}},
+					Name:       dnsname,
+					Type_:      ep.RecordType,
+					Records:    []pgo.Record{pgo.Record{Content: ep.Target}},
+					Changetype: string(changetype),
 				}
-				// DELETEs explicitly forbid a TTL, therefore only UPDATEs need the TTL
-				if changetype == pdnsReplace {
+
+				// DELETEs explicitly forbid a TTL, therefore only PATCHes need the TTL
+				if changetype == PdnsReplace {
 					if int64(ep.RecordTTL) > int64(math.MaxInt32) {
 						return nil, errors.New("Value of record TTL overflows, limited to int32")
 					}
@@ -199,15 +218,29 @@ func (p *PDNSProvider) ConvertEndpointsToZones(endpoints []*endpoint.Endpoint, c
 
 				// "pop" endpoint if it's matched
 				endpoints = append(endpoints[0:i], endpoints[i+1:len(endpoints)]...)
+			} else {
+				// If we didn't pop anything, we move to the next item in the list
+				i++
 			}
 
+			fmt.Println("ANHAD (inner loop - post):", endpoints)
 		}
 
-		zonelist = append(zonelist, zone)
+		if len(zone.Rrsets) > 0 {
+			zonelist = append(zonelist, zone)
+		}
 
 	}
 
+	// If we still have some endpoints left, it means we couldn't find a matching zone for them
+	// We warn instead of hard fail here because we don't want a misconfig to cause everything to go down
+	if len(endpoints) > 0 {
+		log.Warnf("No matching zones were found for the following endpoints: %+v", endpoints)
+	}
+
 	log.Debugf("Zone List generated from Endpoints: %+v", zonelist)
+
+	fmt.Println("ANHAD (exit):", endpoints)
 
 	return zonelist, nil
 }
@@ -280,7 +313,7 @@ func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 	// prevent unnecessary logging
 	if len(changes.Create) > 0 {
 		// "Replacing" non-existant records creates them
-		p.mutateRecords(changes.Create, pdnsReplace)
+		p.mutateRecords(changes.Create, PdnsReplace)
 	}
 
 	// Update
@@ -296,7 +329,7 @@ func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 		log.Debugf("UPDATE-NEW: %+v", change)
 	}
 	if len(changes.UpdateNew) > 0 {
-		p.mutateRecords(changes.UpdateNew, pdnsReplace)
+		p.mutateRecords(changes.UpdateNew, PdnsReplace)
 	}
 
 	// Delete
@@ -304,7 +337,7 @@ func (p *PDNSProvider) ApplyChanges(changes *plan.Changes) error {
 		log.Debugf("DELETE: %+v", change)
 	}
 	if len(changes.Delete) > 0 {
-		p.mutateRecords(changes.Delete, pdnsDelete)
+		p.mutateRecords(changes.Delete, PdnsDelete)
 	}
 
 	log.Debugf("Changes pushed out to PowerDNS in %s\n", time.Since(startTime))
