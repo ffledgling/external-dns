@@ -14,14 +14,6 @@ import (
 	"github.com/kubernetes-incubator/external-dns/endpoint"
 )
 
-// Test when we create a new provider it sets certain values correctly and errors out correctly in certain cases.
-
-// Test zones to endpoints works correctly
-// Test endpoints to zones works correctly
-// Test the correct list/patch functions are called?
-// Check your "regular"/80% case for arguments
-
-// FIXME: Disabled record should not be returned in .Records()
 // FIXME: What do we do about labels?
 
 var (
@@ -58,21 +50,6 @@ var (
 			pgo.Record{Content: "\"heritage=external-dns,external-dns/owner=tower-pdns\"", Disabled: false, SetPtr: false},
 		},
 	}
-	endpointsSimpleRecord = []*endpoint.Endpoint{
-		endpoint.NewEndpointWithTTL("example.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
-		endpoint.NewEndpointWithTTL("example.com", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
-	}
-
-	endpointsLongRecord = []*endpoint.Endpoint{
-		endpoint.NewEndpointWithTTL("a.very.long.domainname.example.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
-		endpoint.NewEndpointWithTTL("a.very.long.domainname.example.com", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
-	}
-
-	endpointsNonexistantZone = []*endpoint.Endpoint{
-		endpoint.NewEndpointWithTTL("does.not.exist.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
-		endpoint.NewEndpointWithTTL("does.not.exist.com", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
-	}
-
 	// RRSet with one record disabled
 	RRSetDisabledRecord = pgo.RrSet{
 		Name:  "example.com.",
@@ -82,9 +59,6 @@ var (
 			pgo.Record{Content: "8.8.8.8", Disabled: false, SetPtr: false},
 			pgo.Record{Content: "8.8.4.4", Disabled: true, SetPtr: false},
 		},
-	}
-	endpointsDisabledRecord = []*endpoint.Endpoint{
-		endpoint.NewEndpointWithTTL("example.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
 	}
 
 	RRSetCNAMERecord = pgo.RrSet{
@@ -116,6 +90,24 @@ var (
 		},
 	}
 
+	endpointsDisabledRecord = []*endpoint.Endpoint{
+		endpoint.NewEndpointWithTTL("example.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
+	}
+
+	endpointsSimpleRecord = []*endpoint.Endpoint{
+		endpoint.NewEndpointWithTTL("example.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
+		endpoint.NewEndpointWithTTL("example.com", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
+	}
+
+	endpointsLongRecord = []*endpoint.Endpoint{
+		endpoint.NewEndpointWithTTL("a.very.long.domainname.example.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
+		endpoint.NewEndpointWithTTL("a.very.long.domainname.example.com", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
+	}
+
+	endpointsNonexistantZone = []*endpoint.Endpoint{
+		endpoint.NewEndpointWithTTL("does.not.exist.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
+		endpoint.NewEndpointWithTTL("does.not.exist.com", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
+	}
 	endpointsMultipleRecords = []*endpoint.Endpoint{
 		endpoint.NewEndpointWithTTL("example.com", "8.8.8.8", endpoint.RecordTypeA, endpoint.TTL(300)),
 		endpoint.NewEndpointWithTTL("example.com", "8.8.4.4", endpoint.RecordTypeA, endpoint.TTL(300)),
@@ -137,7 +129,6 @@ var (
 		endpoint.NewEndpointWithTTL("mock.test", "\"heritage=external-dns,external-dns/owner=tower-pdns\"", endpoint.RecordTypeTXT, endpoint.TTL(300)),
 	}
 
-	//
 	ZoneEmpty = pgo.Zone{
 		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
 		Id: "example.com.",
@@ -154,62 +145,38 @@ var (
 	}
 
 	ZoneEmptyLong = pgo.Zone{
-		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "long.domainname.example.com.",
-		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "long.domainname.example.com.",
-		// Set to “Zone”
-		Type_: "Zone",
-		// API endpoint for this zone
-		Url: "/api/v1/servers/localhost/zones/long.domainname.example.com.",
-		// Zone kind, one of “Native”, “Master”, “Slave”
-		Kind: "Native",
-		// RRSets in this zone
+		Id:     "long.domainname.example.com.",
+		Name:   "long.domainname.example.com.",
+		Type_:  "Zone",
+		Url:    "/api/v1/servers/localhost/zones/long.domainname.example.com.",
+		Kind:   "Native",
 		Rrsets: []pgo.RrSet{},
 	}
 
 	ZoneEmpty2 = pgo.Zone{
-		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "mock.test.",
-		// Name of the zone (e.g. “mock.test.”) MUST have a trailing dot
-		Name: "mock.test.",
-		// Set to “Zone”
-		Type_: "Zone",
-		// API endpoint for this zone
-		Url: "/api/v1/servers/localhost/zones/mock.test.",
-		// Zone kind, one of “Native”, “Master”, “Slave”
-		Kind: "Native",
-		// RRSets in this zone
+		Id:     "mock.test.",
+		Name:   "mock.test.",
+		Type_:  "Zone",
+		Url:    "/api/v1/servers/localhost/zones/mock.test.",
+		Kind:   "Native",
 		Rrsets: []pgo.RrSet{},
 	}
 
 	ZoneMixed = pgo.Zone{
-		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "example.com.",
-		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "example.com.",
-		// Set to “Zone”
-		Type_: "Zone",
-		// API endpoint for this zone
-		Url: "/api/v1/servers/localhost/zones/example.com.",
-		// Zone kind, one of “Native”, “Master”, “Slave”
-		Kind: "Native",
-		// RRSets in this zone
+		Id:     "example.com.",
+		Name:   "example.com.",
+		Type_:  "Zone",
+		Url:    "/api/v1/servers/localhost/zones/example.com.",
+		Kind:   "Native",
 		Rrsets: []pgo.RrSet{RRSetCNAMERecord, RRSetTXTRecord, RRSetMultipleRecords},
 	}
 
 	ZoneEmptyToSimplePatch = pgo.Zone{
-		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "example.com.",
-		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "example.com.",
-		// Set to “Zone”
+		Id:    "example.com.",
+		Name:  "example.com.",
 		Type_: "Zone",
-		// API endpoint for this zone
-		Url: "/api/v1/servers/localhost/zones/example.com.",
-		// Zone kind, one of “Native”, “Master”, “Slave”
-		Kind: "Native",
-		// RRSets in this zone
+		Url:   "/api/v1/servers/localhost/zones/example.com.",
+		Kind:  "Native",
 		Rrsets: []pgo.RrSet{
 			pgo.RrSet{
 				Name:       "example.com.",
@@ -243,17 +210,11 @@ var (
 	}
 
 	ZoneEmptyToLongPatch = pgo.Zone{
-		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "long.domainname.example.com.",
-		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "long.domainname.example.com.",
-		// Set to “Zone”
+		Id:    "long.domainname.example.com.",
+		Name:  "long.domainname.example.com.",
 		Type_: "Zone",
-		// API endpoint for this zone
-		Url: "/api/v1/servers/localhost/zones/long.domainname.example.com.",
-		// Zone kind, one of “Native”, “Master”, “Slave”
-		Kind: "Native",
-		// RRSets in this zone
+		Url:   "/api/v1/servers/localhost/zones/long.domainname.example.com.",
+		Kind:  "Native",
 		Rrsets: []pgo.RrSet{
 			pgo.RrSet{
 				Name:       "a.very.long.domainname.example.com.",
@@ -287,17 +248,11 @@ var (
 	}
 
 	ZoneEmptyToSimplePatch2 = pgo.Zone{
-		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "mock.test.",
-		// Name of the zone (e.g. “mock.test.”) MUST have a trailing dot
-		Name: "mock.test.",
-		// Set to “Zone”
+		Id:    "mock.test.",
+		Name:  "mock.test.",
 		Type_: "Zone",
-		// API endpoint for this zone
-		Url: "/api/v1/servers/localhost/zones/mock.test.",
-		// Zone kind, one of “Native”, “Master”, “Slave”
-		Kind: "Native",
-		// RRSets in this zone
+		Url:   "/api/v1/servers/localhost/zones/mock.test.",
+		Kind:  "Native",
 		Rrsets: []pgo.RrSet{
 			pgo.RrSet{
 				Name:       "mock.test.",
@@ -331,17 +286,11 @@ var (
 	}
 
 	ZoneEmptyToSimpleDelete = pgo.Zone{
-		// Opaque zone id (string), assigned by the server, should not be interpreted by the application. Guaranteed to be safe for embedding in URLs.
-		Id: "example.com.",
-		// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
-		Name: "example.com.",
-		// Set to “Zone”
+		Id:    "example.com.",
+		Name:  "example.com.",
 		Type_: "Zone",
-		// API endpoint for this zone
-		Url: "/api/v1/servers/localhost/zones/example.com.",
-		// Zone kind, one of “Native”, “Master”, “Slave”
-		Kind: "Native",
-		// RRSets in this zone
+		Url:   "/api/v1/servers/localhost/zones/example.com.",
+		Kind:  "Native",
 		Rrsets: []pgo.RrSet{
 			pgo.RrSet{
 				Name:       "example.com.",
@@ -373,6 +322,7 @@ var (
 	}
 )
 
+/******************************************************************************/
 // API that returns a zone with multiple record types
 type PDNSAPIClientStub struct {
 }
@@ -387,7 +337,8 @@ func (c *PDNSAPIClientStub) PatchZone(zoneId string, zoneStruct pgo.Zone) (*http
 	return nil, nil
 }
 
-// API that returns a zone with no records
+/******************************************************************************/
+// API that returns a zones with no records
 type PDNSAPIClientStubEmptyZones struct {
 	// Keep track of all zones we recieve via PatchZone
 	patchedZones []pgo.Zone
@@ -414,7 +365,8 @@ func (c *PDNSAPIClientStubEmptyZones) PatchZone(zoneId string, zoneStruct pgo.Zo
 	return nil, nil
 }
 
-// API that returns a zone with no records
+/******************************************************************************/
+// API that returns error on PatchZone()
 type PDNSAPIClientStubPatchZoneFailure struct {
 	// Anonymous struct for composition
 	PDNSAPIClientStubEmptyZones
@@ -425,7 +377,8 @@ func (c *PDNSAPIClientStubPatchZoneFailure) PatchZone(zoneId string, zoneStruct 
 	return nil, errors.New("Generic PDNS Error")
 }
 
-// API that returns a zone with no records
+/******************************************************************************/
+// API that returns error on ListZone()
 type PDNSAPIClientStubListZoneFailure struct {
 	// Anonymous struct for composition
 	PDNSAPIClientStubEmptyZones
@@ -437,6 +390,8 @@ func (c *PDNSAPIClientStubListZoneFailure) ListZone(zoneId string) (pgo.Zone, *h
 
 }
 
+/******************************************************************************/
+// API that returns error on ListZones() (Zones - plural)
 type PDNSAPIClientStubListZonesFailure struct {
 	// Anonymous struct for composition
 	PDNSAPIClientStubEmptyZones
@@ -446,6 +401,8 @@ type PDNSAPIClientStubListZonesFailure struct {
 func (c *PDNSAPIClientStubListZonesFailure) ListZones() ([]pgo.Zone, *http.Response, error) {
 	return []pgo.Zone{}, nil, errors.New("Generic PDNS Error")
 }
+
+/******************************************************************************/
 
 type NewPDNSProviderTestSuite struct {
 	suite.Suite
@@ -551,7 +508,7 @@ func (suite *NewPDNSProviderTestSuite) TestPDNSConvertEndpointsToZones() {
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), []pgo.Zone{}, zlist)
 
-	// TODO: Add test to check a record that matches multiple zones (one longer than other), is assigned to the right zone
+	// Check endpoints that match multiple zones (one longer than other), is assigned to the right zone
 	zlist, err = p.ConvertEndpointsToZones(endpointsLongRecord, PdnsReplace)
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), []pgo.Zone{ZoneEmptyToLongPatch}, zlist)
